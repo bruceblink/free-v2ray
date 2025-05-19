@@ -44,7 +44,7 @@ jobs:
 
       - name: Run node collector
         run: python main.py
-        timeout-minutes: 60
+        timeout-minutes: 150
         env:
           MAX_CONCURRENT_TESTS: 50  # 自定义并发数
 
