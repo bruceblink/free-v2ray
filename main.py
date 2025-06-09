@@ -1518,7 +1518,7 @@ def process_node(node):
     latency = _test_latency(node)
 
     # 过滤掉延迟为0ms或连接失败的节点或者连接超过1000ms
-    if latency <= 0 or latency > 1000:
+    if latency < 0 or latency > 1000:
         # status = "连接失败" if latency == -1 else "延迟为0ms"
         # print(f"节点: {node['name']} ，{status}，跳过")
         return None
