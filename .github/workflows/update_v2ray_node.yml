@@ -5,6 +5,8 @@ on:
     - cron: '0 */3 * * *'  # 每3小时运行一次（UTC时间）
   workflow_dispatch:
   push:
+    tags-ignore:
+      - '*'            # 忽略所有 tag 推送
     paths-ignore:
       - 'README.md'
       - 'LICENSE'
