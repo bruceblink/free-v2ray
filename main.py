@@ -1681,7 +1681,7 @@ def main():
         base64_content = base64.b64encode(uri_content.encode('utf-8')).decode('utf-8')
 
         # 将base64编码后的内容写入文件
-        with open('v2ray.txt', 'w', encoding='utf-8') as f:
+        with open('v2ray/v2ray.txt', 'w', encoding='utf-8') as f:
             f.write(base64_content)
 
         print(f"\n已将 {valid_uri_count} 个有效节点以base64编码保存到 v2ray.txt 文件")
