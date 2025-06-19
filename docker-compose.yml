@@ -10,7 +10,7 @@ services:
     working_dir: /app
     command: python main.py
     volumes:
-      - .:/app  # ⬅️ 挂载当前目录到容器的 /app 目录
-      - .logs:/app/logs  # ⬅️ 挂载日志目录
+      - ./v2ray:/app/v2ray  # ⬅️ 挂载当前目录到容器的 /app/v2ray 目录
+      - ./logs:/app/logs  # ⬅️ 挂载日志目录
     environment:
       - PYTHONUNBUFFERED=1
