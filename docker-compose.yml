@@ -12,5 +12,6 @@ services:
     volumes:
       - ./v2ray:/app/v2ray  # ⬅️ 挂载当前目录到容器的 /app/v2ray 目录
       - ./logs:/app/logs  # ⬅️ 挂载日志目录
+      - ./conf:/app/conf  # ⬅️ 挂载配置目录
     environment:
       - PYTHONUNBUFFERED=1

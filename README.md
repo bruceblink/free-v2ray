@@ -56,7 +56,7 @@ pip install -r requirements.txt
       如果你没有安装docker-compose，可以直接使用以下命令运行：
     
        ```bash
-        docker run -d --name free-v2ray -v ${PWD}/v2ray:/app/v2ray -v ${PWD}/logs:/app/logs likanug515/free-v2ray:latest
+        docker run -d --name free-v2ray -v ${PWD}/v2ray:/app/v2ray -v ${PWD}/conf:/app/conf -v ${PWD}/logs:/app/logs likanug515/free-v2ray:latest
        ```
 
 2. 工具会自动：
