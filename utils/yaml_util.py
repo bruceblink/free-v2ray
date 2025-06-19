@@ -93,5 +93,5 @@ if __name__ == "__main__":
     YamlHandler.write_yaml(sample_data, '../conf.yaml')
 
     # 安全读取示例
-    safe_loaded = YamlHandler.safe_read_yaml('../config.yaml')
+    safe_loaded = YamlHandler.safe_read_yaml('../conf/conf.yaml')
     print(safe_loaded)

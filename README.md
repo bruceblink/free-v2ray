@@ -83,7 +83,7 @@ pip install -r requirements.txt
 
 ## 订阅链接配置
 
-编辑config.yaml配置文件可以自定义订阅链接：
+编辑conf/conf.yaml配置文件可以自定义订阅链接：
 
 ```yaml
 #单个订阅链接

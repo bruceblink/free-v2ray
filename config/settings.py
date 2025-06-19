@@ -15,7 +15,7 @@ class Settings:
     # xray-core存放的文件夹
     XRAY_CORE_DIR = BASE_DIR / "xray-core"
     OUTPUT_DIR = BASE_DIR
-    CONFIG_FILE = BASE_DIR / "config.yaml"
+    CONFIG_FILE = BASE_DIR / "conf/conf.yaml"
 
     # 协议配置
     SUPPORTED_PROTOCOLS = ["vmess", "vless"]
