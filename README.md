@@ -56,7 +56,7 @@ pip install -r requirements.txt
       如果你没有安装docker-compose，可以直接使用以下命令运行：
     
       ```bash
-      docker run -d --name free-v2ray -v ${PWD}:/app -v ${PWD}/logs:/app/logs likanug515/free-v2ray:latest
+      docker run -d --name free-v2ray -v ${PWD}/v2ray:/app/v2ray -v ${PWD}/logs:/app/logs likanug515/free-v2ray:latest
       ```
 
 2. 工具会自动：
@@ -67,7 +67,7 @@ pip install -r requirements.txt
    - 生成最终的节点列表
 
 3. 测试完成后，结果会保存到：
-   - `v2ray.txt`：Base64编码的节点信息（可直接导入到V2Ray客户端）
+   - `v2ray/v2ray.txt`：Base64编码的节点信息（可直接导入到V2Ray客户端）
    - `v2ray_raw.txt`：原始文本格式的节点信息（方便查看）
 
 ## 代码结构
