@@ -133,9 +133,12 @@ subscriptions:
 - 对于特殊网站的解析问题，可能需要安装额外的依赖（如BeautifulSoup4）。
 - 如果遇到编码问题，可能需要调整`fetch_content`函数中的编码处理逻辑。
 
-## 贡献
+## 联系方式
 
-欢迎提交问题报告和改进建议！如果您想贡献代码，请提交Pull Request。
+如有任何问题或建议，欢迎通过以下方式联系：
+
+- 提交 [Issue](https://github.com/bruceblink/free-v2ray/issues)
+- [发送邮件](mailto:likanug.g@qq.com)
 
 ## 许可
 
