@@ -20,6 +20,7 @@ from urllib.parse import urlparse, parse_qs, unquote
 import requests
 import yaml
 
+from common.decorators import timer
 from common.logger import Logger
 from config.settings import Settings
 from utils import utils
@@ -58,7 +59,7 @@ def is_github_raw_url(url):
 
 def extract_file_pattern(url):
     """从URL中提取文件模式，例如{x}.yaml中的.yaml"""
-    match = re.search(r'\{x\}(\.[a-zA-Z0-9]+)(?:/|$)', url)
+    match = re.search(r'\{x}(\.[a-zA-Z0-9]+)(?:/|$)', url)
     if match:
         return match.group(1)  # 返回文件后缀，如 '.yaml', '.txt', '.json'
     return None
@@ -589,7 +590,8 @@ def parse_v2ray_uri(uri):
                 b64_config = b64_config + '=' * (-len(b64_config) % 4)
                 config_str = base64.b64decode(b64_config).decode()
 
-                # SSR格式: server:port:protocol:method:obfs:base64pass/?obfsparam=base64param&protoparam=base64param&remarks=base64remarks
+                # SSR格式: server:port:protocol:method:obfs:base64pass/?obfsparam=base64param&protoparam=base64param
+                # &remarks=base64remarks
                 parts = config_str.split(':')
                 if len(parts) >= 6:
                     server = parts[0]
@@ -1516,6 +1518,7 @@ def _test_latency(node):
     return latency
 
 
+@timer(unit="ms")
 def process_node(node):
     """处理单个节点，添加延迟信息"""
     if not node or 'name' not in node or 'server' not in node:
@@ -1632,6 +1635,7 @@ def load_subscriptions(config: dict) -> list[str]:
     return list(dict.fromkeys(subs))
 
 
+@timer(unit="ms")
 def _fetch_and_extract(link: str) -> list[dict]:
     """
     线程中运行：拉取订阅、提取节点列表。
@@ -1649,6 +1653,7 @@ def _fetch_and_extract(link: str) -> list[dict]:
         return []
 
 
+@timer(unit="ms")
 def gather_all_nodes(sub_links: list[str], max_workers: int | None = None) -> list[dict]:
     """
     并发拉取并解析所有订阅链接（I/O 密集型），返回聚合后的节点列表。
@@ -1673,6 +1678,7 @@ def gather_all_nodes(sub_links: list[str], max_workers: int | None = None) -> li
     return all_nodes
 
 
+@timer(unit="ms")
 def _test_all_nodes_latency(
         nodes: list[dict],
         max_workers: int | None = None
