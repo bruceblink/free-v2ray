@@ -23,50 +23,73 @@
 - SOCKS
 - Hysteria
 - WireGuard
+## 安装步骤
 
-## 安装依赖
+1. 克隆仓库到本地：
+    ```bash
+    git clone https://github.com/bruceblink/free-v2ray
+    cd free-v2ray
+    ```
 
-```bash
-pip install -r requirements.txt
-```
+2. 安装依赖：
+    ```bash
+    pip install -r requirements.txt
+    ```
 
 ## 使用方法
 
-1. 运行主脚本：
-    - **IDE或者终端运行**：
-        ```bash
-        python main.py
-        ```
-    - **或者docker-compose运行**：
-    
-      安装以及启动
-    
-        ```bash
-        docker-compose -f docker-compose.yml -p free-v2ray up -d
-        ```
-    
-      停止及卸载
-    
-        ```bash
-        docker-compose -f docker-compose.yml -p free-v2ray down
-        ```
-    
-    - **或者docker运行**
-    
-      如果你没有安装docker-compose，可以直接使用以下命令运行：
-    
-       ```bash
-        docker run -d --name free-v2ray -v ${PWD}/v2ray:/app/v2ray -v ${PWD}/conf:/app/conf -v ${PWD}/logs:/app/logs likanug515/free-v2ray:latest
-       ```
+### Github Actions定时更新
 
-2. 工具会自动：
+如果不想安装，或者下载任何代码及软件，可以每天从当前的[Github仓库](https://github.com/bruceblink/free-v2ray)的`v2ray/v2ray.txt`中复制最新的节点，`v2ray.tx`中的节点每3小时(这个更新频率可以自己在[.github/workflows/update_v2ray_node.yml]([update_v2ray_node.yml](https://github.com/bruceblink/free-v2ray/blob/main/.github/workflows/update_v2ray_node.yml))中调整)更新一次新的，具体更新记录可以查看代码的提交记录。
+
+### 本地运行
+
+- 例如使用Pycharm或者vscode打开下载到本地的代码目录
+
+   运行main.py
+   ```bash
+   python main.py
+   ```
+   等待v2ray.txt文件的生成和更新
+
+- 或者docker-compose运行
+
+    在代码仓库的本地目录终端中执行如下命令
+
+    构建以及启动
+
+    ```bash
+    docker-compose -f docker-compose.yml -p free-v2ray up -d
+    ```
+
+    停止及卸载
+
+    ```bash
+    docker-compose -f docker-compose.yml -p free-v2ray down
+    ```
+
+- 使用docker运行
+   如果你没有安装docker-compose，可以直接使用以下命令运行：
+   将终端运行的目录(`pwd`目录)下的`v2ray`、`conf`和`logs`文件夹挂载到容器中，需要将项目中的`conf/conf.yml`文件复制到当前目录`conf`目录下。
+
+    ```powershell
+     docker run -d --name free-v2ray -v ${PWD}/v2ray:/app/v2ray -v ${PWD}/conf:/app/conf -v ${PWD}/logs:/app/logs likanug515/free-v2ray:latest
+    ```
+
+     如果想使用默认的conf.yml，可以不挂载`conf`目录，使用如下命令：        
+
+    ```powershell
+    docker run -d --name free-v2ray -v ${PWD}/v2ray:/app/v2ray -v ${PWD}/logs:/app/logs likanug515/free-v2ray:latest
+    ```
+
+
+- 工具会自动：
    - 从预定义的链接获取节点信息
    - 解析不同格式的节点配置
    - 进行去重处理
    - 测试节点的连接质量和延迟
    - 生成最终的节点列表
-
-3. 测试完成后，结果会保存到：
+- 测试完成后，结果会保存到：
    - `v2ray/v2ray.txt`：Base64编码的节点信息（可直接导入到V2Ray客户端）
    - `v2ray_raw.txt`：原始文本格式的节点信息（方便查看）
 
