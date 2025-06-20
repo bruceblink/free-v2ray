@@ -1,6 +1,7 @@
 import base64
 import io
 import json
+import logging
 import os
 import platform
 import random
@@ -19,6 +20,7 @@ from urllib.parse import urlparse, parse_qs, unquote
 import requests
 import yaml
 
+from common.logger import Logger
 from config.settings import Settings
 
 # 支持的协议类型列表
@@ -1729,28 +1731,43 @@ def save_results(nodes: list[dict]) -> None:
     print(f"已保存原始文本到 {V2RAY_DIR / 'v2ray_raw.txt'}")
 
 
-def main():
-    # 初始化
+def init():
+    """初始化设置和日志记录"""
     Settings.setup()
+    Logger.init(
+        level=logging.DEBUG,
+        log_file='logs/app.log',
+        max_bytes=10_000_000,
+        backup_count=5,
+        console=True,
+        colored=True
+    )
+    logging.info("应用初始化完成")
+
+
+def main():
+    # 应用初始化
+    init()
+    """主函数，执行所有步骤"""
     config = Settings.load_config()
     core_path = find_core_program()
-    print(f"核心程序路径：{core_path}")
+    logging.info(f"核心程序路径：{core_path}")
 
     # 1. 加载并去重订阅
     sub_links = load_subscriptions(config)
-    print(f"共 {len(sub_links)} 条订阅链接")
+    logging.info(f"共 {len(sub_links)} 条订阅链接")
 
     # 2. 获取并解析所有节点
     all_nodes = gather_all_nodes(sub_links)
-    print(f"提取到节点总数：{len(all_nodes)}")
+    logging.info(f"提取到节点总数：{len(all_nodes)}")
 
     # 3. 去重
     unique_nodes = deduplicate_nodes(all_nodes)
-    print(f"去重后节点数量：{len(unique_nodes)}")
+    logging.info(f"去重后节点数量：{len(unique_nodes)}")
 
     # 4. 测试延迟
     valid_nodes = _test_all_nodes_latency(unique_nodes)
-    print(f"有效节点数量：{len(valid_nodes)}")
+    logging.info(f"有效节点数量：{len(valid_nodes)}")
 
     # 5. 保存结果
     save_results(valid_nodes)
