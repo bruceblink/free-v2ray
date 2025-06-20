@@ -1735,7 +1735,7 @@ def init():
     """初始化设置和日志记录"""
     Settings.setup()
     Logger.init(
-        level=logging.DEBUG,
+        level=logging.INFO,
         log_file=f"logs/app_{utils.iso_date_dd}.log",
         max_bytes=10_000_000,
         backup_count=5,
