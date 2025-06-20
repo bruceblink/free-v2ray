@@ -1618,9 +1618,6 @@ def node_to_v2ray_uri(node):
     return None
 
 
-V2RAY_DIR = Path("v2ray")
-
-
 def load_subscriptions(config: dict) -> list[str]:
     """加载并合并配置中的订阅链接和汇聚订阅链接，去重后返回列表。"""
     subs = config.get("subscriptions", [])
@@ -1725,16 +1722,15 @@ def save_results(nodes: list[dict]) -> None:
         logging.info("未找到有效节点，不生成文件")
         return
 
-    V2RAY_DIR.mkdir(exist_ok=True)
     uris = [node_to_v2ray_uri(n) for n in nodes if node_to_v2ray_uri(n)]
     raw = "\n".join(uris)
     b64 = base64.b64encode(raw.encode()).decode()
+    v2ray_txt = Settings.V2RAY_DIR / "v2ray.txt"
+    v2ray_txt.write_text(b64, encoding="utf-8")
+    logging.info(f"已保存 {len(uris)} 条节点（base64）到 {v2ray_txt}")
 
-    (V2RAY_DIR / "v2ray.txt").write_text(b64, encoding="utf-8")
-    logging.info(f"已保存 {len(uris)} 条节点（base64）到 {V2RAY_DIR / 'v2ray.txt'}")
-
-    (V2RAY_DIR / "v2ray_raw.txt").write_text(raw, encoding="utf-8")
-    logging.info(f"已保存原始文本到 {V2RAY_DIR / 'v2ray_raw.txt'}")
+    v2ray_txt.write_text(raw, encoding="utf-8")
+    logging.info(f"已保存原始文本到 {v2ray_txt}")
 
 
 def init():
@@ -1755,7 +1751,7 @@ def main():
     # 应用初始化
     init()
     """主函数，执行所有步骤"""
-    config = Settings.load_config()
+    config = Settings().config
     core_path = find_core_program()
     logging.info(f"核心程序路径：{core_path}")
 
