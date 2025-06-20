@@ -53,14 +53,16 @@ jobs:
       - name: Validate output
         id: validation
         run: |
-          v2rayfile = "v2ray/v2ray.txt"
-          # 检查文件存在性、大小和基本格式
+          v2rayfile="v2ray/v2ray.txt"
+          # 检查文件是否存在
           if [ ! -f "$v2rayfile" ]; then
             echo "::error::Output file not found"
             exit 1
           fi
-          
+
+          # 检查文件大小是否足够
           filesize=$(wc -c <"$v2rayfile")
+          echo "📏 文件大小: ${filesize} 字节"
           if [ "$filesize" -lt 100 ]; then
             echo "::error::File size too small (${filesize} bytes)"
             exit 2
@@ -70,7 +72,7 @@ jobs:
         if: success()
         run: |
           git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"s
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
           
           # 生成智能提交信息
           timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
@@ -94,6 +96,5 @@ jobs:
       - name: Cleanup workspace
         if: always()
         run: |
-          # 清理临时文件
           find . -type f -name '*.tmp' -delete
           rm -rf ./temp
