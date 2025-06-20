@@ -2,6 +2,7 @@ import logging
 import os
 from pathlib import Path
 from typing import Dict, Any
+from unittest import TestCase
 import yaml
 
 
@@ -21,6 +22,9 @@ class Settings:
     # 协议配置
     SUPPORTED_PROTOCOLS = ["vmess", "vless"]
 
+    # 线程池大小
+    THREAD_POOL_SIZE = min(100, os.cpu_count() * 10)
+
     @classmethod
     def load_config(cls) -> Dict[str, Any]:
         """加载YAML配置文件"""
@@ -36,3 +40,17 @@ class Settings:
         """初始化目录结构"""
         cls.XRAY_CORE_DIR.mkdir(exist_ok=True)
         cls.OUTPUT_DIR.mkdir(exist_ok=True)
+
+
+class TestSettings(TestCase):
+
+    def setUp(self):
+        """设置测试环境"""
+        Settings.setup()
+
+    def test_thread_pool_size(self):
+        """测试线程池大小"""
+        self.assertLessEqual(Settings.THREAD_POOL_SIZE, os.cpu_count() * 10)
+        self.assertEqual(Settings.THREAD_POOL_SIZE,100)
+        self.assertEqual(os.cpu_count(),24)
+

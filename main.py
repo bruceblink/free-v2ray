@@ -1654,7 +1654,7 @@ def gather_all_nodes(sub_links: list[str], max_workers: int | None = None) -> li
     """
     并发拉取并解析所有订阅链接（I/O 密集型），返回聚合后的节点列表。
     """
-    max_workers = min(100, os.cpu_count() * 10) if max_workers is None else max_workers
+    max_workers = Settings.THREAD_POOL_SIZE if max_workers is None else max_workers
     logging.info(f"开始并发获取节点信息，使用线程池最大并发数：{max_workers}")
     all_nodes: list[dict] = []
 
@@ -1685,7 +1685,7 @@ def _test_all_nodes_latency(
     total = len(nodes)
     done = 0
     max_workers = min(100, os.cpu_count() * 10) if max_workers is None else max_workers
-    logging.info(f"开始测试节点延迟，总共 {total} 个节点，使用线程池最大并发数：{max_workers }")
+    logging.info(f"开始测试节点延迟，总共 {total} 个节点，使用线程池最大并发数：{max_workers}")
     with ThreadPoolExecutor(max_workers=max_workers) as pool:
         # 提交所有任务
         future_to_node = {pool.submit(process_node, node): node for node in nodes}
