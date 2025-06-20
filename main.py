@@ -1529,18 +1529,16 @@ def process_node(node):
     return node
 
 
-def remove_duplicates(nodes):
-    """去除重复节点"""
-    unique_nodes = {}
+def deduplicate_nodes(nodes):
+    """根据节点唯一属性去重，例如用 server:port。"""
+    seen = set()
+    unique = []
     for node in nodes:
-        try:
-            key = f"{node['server']}:{node['port']}"
-            if key not in unique_nodes:
-                unique_nodes[key] = node
-        except Exception as e:
-            # print(f"处理节点 {node['name']} 时出错: {str(e)}")
-            continue
-    return list(unique_nodes.values())
+        key = f"{node['server']}:{node['port']}"
+        if key and key not in seen:
+            seen.add(key)
+            unique.append(node)
+    return unique
 
 
 def node_to_v2ray_uri(node):
@@ -1647,7 +1645,7 @@ def main():
 
     # 节点去重
     print(f"去重前节点数量: {len(all_nodes)}")
-    all_nodes = remove_duplicates(all_nodes)
+    all_nodes = deduplicate_nodes(all_nodes)
     print(f"去重后节点数量: {len(all_nodes)}")
 
     # 暂时只测试获取节点信息
