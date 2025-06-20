@@ -1,3 +1,5 @@
+import logging
+
 import yaml
 from pathlib import Path
 from typing import Any, Union, Optional
@@ -94,4 +96,4 @@ if __name__ == "__main__":
 
     # 安全读取示例
     safe_loaded = YamlHandler.safe_read_yaml('../conf/conf.yaml')
-    print(safe_loaded)
+    logging.info(safe_loaded)

@@ -1,3 +1,5 @@
+import logging
+
 import requests
 
 
@@ -74,7 +76,7 @@ class HttpRequestTool:
             resp.raise_for_status()  # 如果响应状态码不是200-299，抛出HTTPError
             return resp
         except requests.exceptions.RequestException as e:
-            print(f"请求失败: {e} (URL: {url})")
+            logging.info(f"请求失败: {e} (URL: {url})")
             return None
 
     def get(self, endpoint, **kwargs):
@@ -110,4 +112,4 @@ if __name__ == "__main__":
         .get("")
     
     if response:
-        print("GET请求结果:", response.text)
+        logging.info("GET请求结果:", response.text)

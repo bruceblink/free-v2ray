@@ -67,7 +67,7 @@ def extract_file_pattern(url):
 def get_github_filename(github_url, file_suffix):
     """从GitHub API获取匹配指定后缀的文件名"""
     try:
-        print(f"处理GitHub URL: {github_url}")
+        logging.info(f"处理GitHub URL: {github_url}")
         # 标准化URL - 移除代理前缀
         url_without_proxy = github_url
         if 'ghproxy.net/' in github_url:
@@ -76,7 +76,7 @@ def get_github_filename(github_url, file_suffix):
         # 提取仓库所有者、名称和分支信息
         url_parts = url_without_proxy.replace('https://raw.githubusercontent.com/', '').split('/')
         if len(url_parts) < 3:
-            print(f"URL格式不正确: {github_url}")
+            logging.info(f"URL格式不正确: {github_url}")
             return None
 
         owner = url_parts[0]
@@ -96,7 +96,7 @@ def get_github_filename(github_url, file_suffix):
         else:
             directory_path = path_parts
 
-        print(f"解析结果: 仓库={owner}/{repo}, 分支={branch}, 路径={directory_path}")
+        logging.info(f"解析结果: 仓库={owner}/{repo}, 分支={branch}, 路径={directory_path}")
 
         # 构建GitHub API URL
         api_url = f"https://api.github.com/repos/{owner}/{repo}/contents/{directory_path}"
@@ -105,50 +105,50 @@ def get_github_filename(github_url, file_suffix):
         if branch:
             api_url += f"?ref={branch}"
 
-        print(f"构建的API URL: {api_url}")
+        logging.info(f"构建的API URL: {api_url}")
 
         # 使用代理访问GitHub API
         proxy_api_url = f"https://ghproxy.net/{api_url}"
-        print(f"尝试通过代理访问: {proxy_api_url}")
+        logging.info(f"尝试通过代理访问: {proxy_api_url}")
 
         try:
             response = requests.get(proxy_api_url, timeout=30)
             if response.status_code != 200:
-                print("代理访问失败，尝试直接访问GitHub API")
+                logging.info("代理访问失败，尝试直接访问GitHub API")
                 response = requests.get(api_url, timeout=30)
         except Exception as e:
-            print(f"代理访问失败: {str(e)}，尝试直接访问")
+            logging.info(f"代理访问失败: {str(e)}，尝试直接访问")
             response = requests.get(api_url, timeout=30)
 
         if response.status_code != 200:
-            print(f"GitHub API请求失败: {response.status_code} - {api_url}")
-            print(f"响应内容: {response.text[:200]}...")
+            logging.info(f"GitHub API请求失败: {response.status_code} - {api_url}")
+            logging.info(f"响应内容: {response.text[:200]}...")
             return None
 
         # 解析返回的JSON
         files = response.json()
         if not isinstance(files, list):
-            print(f"GitHub API返回的不是文件列表: {type(files)}")
-            print(f"响应内容: {str(files)[:200]}...")
+            logging.info(f"GitHub API返回的不是文件列表: {type(files)}")
+            logging.info(f"响应内容: {str(files)[:200]}...")
             return None
 
-        print(f"在目录中找到{len(files)}个文件/目录")
+        logging.info(f"在目录中找到{len(files)}个文件/目录")
 
         # 查找匹配后缀的文件
         matching_files = [f['name'] for f in files if f['name'].endswith(file_suffix)]
 
         if not matching_files:
-            print(f"未找到匹配{file_suffix}后缀的文件，目录包含: {[f['name'] for f in files][:10]}")
+            logging.info(f"未找到匹配{file_suffix}后缀的文件，目录包含: {[f['name'] for f in files][:10]}")
             return None
 
         # 排序并选择第一个匹配的文件（通常选择最近的文件）
         matching_files.sort(reverse=True)
         selected_file = matching_files[0]
-        print(f"选择文件: {selected_file}")
+        logging.info(f"选择文件: {selected_file}")
         return selected_file
 
     except Exception as e:
-        print(f"获取GitHub文件列表出错: {str(e)}")
+        logging.info(f"获取GitHub文件列表出错: {str(e)}")
         import traceback
         traceback.print_exc()
         return None
@@ -181,8 +181,8 @@ def format_current_date(url):
     try:
         formatted_url = url.format(**date_vars)
     except KeyError as e:
-        print(f"URL中包含未支持的日期格式占位符: {e}")
-        print(f"支持的日期占位符有: {', '.join(date_vars.keys())}")
+        logging.info(f"URL中包含未支持的日期格式占位符: {e}")
+        logging.info(f"支持的日期占位符有: {', '.join(date_vars.keys())}")
         return url  # 返回原始URL，让后续处理决定是否跳过
 
     # 处理{x}占位符
@@ -197,7 +197,7 @@ def format_current_date(url):
                 pattern = r'\{x\}' + re.escape(file_suffix)
                 formatted_url = re.sub(pattern, filename, formatted_url)
             else:
-                print(f"警告: 未能解析{{x}}占位符, URL: {formatted_url}")
+                logging.info(f"警告: 未能解析{{x}}占位符, URL: {formatted_url}")
 
     return formatted_url
 
@@ -235,8 +235,8 @@ def fetch_content(url):
             formatted_url = temporary_url.format(**date_vars)
         except KeyError as e:
             # 如果format失败，尝试手动替换
-            print(f"URL中包含未支持的日期格式占位符: {e}")
-            print(f"支持的日期占位符有: {', '.join(date_vars.keys())}")
+            logging.info(f"URL中包含未支持的日期格式占位符: {e}")
+            logging.info(f"支持的日期占位符有: {', '.join(date_vars.keys())}")
             formatted_url = temporary_url
             # 手动替换常见的日期占位符
             for pattern, replacement in [
@@ -249,7 +249,7 @@ def fetch_content(url):
             ]:
                 if pattern in formatted_url:
                     formatted_url = formatted_url.replace(pattern, replacement)
-                    print(f"手动替换日期占位符 {pattern} 为 {replacement}")
+                    logging.info(f"手动替换日期占位符 {pattern} 为 {replacement}")
 
         # 将临时标记替换回{x}
         formatted_url = formatted_url.replace(temp_marker, "{x}")
@@ -258,18 +258,18 @@ def fetch_content(url):
         if '{x}' in formatted_url:
             file_suffix = extract_file_pattern(formatted_url)
             if file_suffix and is_github_raw_url(formatted_url):
-                print(f"在URL中找到{{x}}占位符，尝试获取匹配的文件...")
+                logging.info(f"在URL中找到{{x}}占位符，尝试获取匹配的文件...")
                 filename = get_github_filename(formatted_url, file_suffix)
                 if filename:
                     pattern = r'\{x\}' + re.escape(file_suffix)
                     formatted_url = re.sub(pattern, filename, formatted_url)
-                    print(f"成功替换{{x}}占位符为: {filename}")
+                    logging.info(f"成功替换{{x}}占位符为: {filename}")
                 else:
-                    print(f"警告: 未能获取匹配{file_suffix}的文件")
+                    logging.info(f"警告: 未能获取匹配{file_suffix}的文件")
             else:
-                print(f"警告: 无法处理{{x}}占位符，URL不是GitHub raw链接或找不到文件后缀")
+                logging.info(f"警告: 无法处理{{x}}占位符，URL不是GitHub raw链接或找不到文件后缀")
 
-        print(f"实际请求URL: {formatted_url}")
+        logging.info(f"实际请求URL: {formatted_url}")
 
         # 模拟Chrome浏览器请求头，与curl命令类似
         headers = {
@@ -309,7 +309,7 @@ def fetch_content(url):
 
         # 检查Content-Type，确保正确处理各种类型的内容
         content_type = response.headers.get('Content-Type', '').lower()
-        # print(f"Content-Type: {content_type}")
+        # logging.info(f"Content-Type: {content_type}")
 
         # 处理不同内容类型
         # 1. 处理二进制类型
@@ -325,7 +325,7 @@ def fetch_content(url):
                     # 检查解码是否成功 - 如果包含常见订阅指示符
                     if any(indicator in content for indicator in
                            ['proxies:', 'vmess://', 'trojan://', 'ss://', 'vless://']):
-                        # print(f"使用 {encoding} 编码成功解码内容")
+                        # logging.info(f"使用 {encoding} 编码成功解码内容")
                         break
                 except UnicodeDecodeError:
                     continue
@@ -345,13 +345,13 @@ def fetch_content(url):
                         element_text = element.get_text()
                         if any(indicator in element_text for indicator in
                                ['proxies:', 'vmess://', 'trojan://', 'ss://', 'vless://']):
-                            print(f"从HTML元素中提取到订阅内容")
+                            logging.info(f"从HTML元素中提取到订阅内容")
                             content = element_text
                             break
                 except ImportError:
-                    print("未安装BeautifulSoup，跳过HTML解析")
+                    logging.info("未安装BeautifulSoup，跳过HTML解析")
                 except Exception as e:
-                    print(f"HTML解析错误: {str(e)}")
+                    logging.info(f"HTML解析错误: {str(e)}")
         # 3. 处理可能是base64编码的内容
         elif 'text/base64' in content_type:
             content = response.content.decode('utf-8', errors='ignore')
@@ -377,7 +377,7 @@ def fetch_content(url):
 
                 if any(indicator in decoded_text for indicator in
                        ['proxies:', 'vmess://', 'trojan://', 'ss://', 'vless://']):
-                    print("检测到Base64编码的订阅内容，已成功解码")
+                    logging.info("检测到Base64编码的订阅内容，已成功解码")
                     content = decoded_text
             except:
                 # 解码失败，继续使用原始内容
@@ -385,10 +385,10 @@ def fetch_content(url):
 
         return content
     except KeyError as e:
-        print(f"URL中包含未支持的占位符: {e}")
+        logging.info(f"URL中包含未支持的占位符: {e}")
         return None
     except Exception as e:
-        print(f"Error fetching {url}: {str(e)}")
+        logging.info(f"Error fetching {url}: {str(e)}")
         import traceback
         traceback.print_exc()
         return None
@@ -404,20 +404,20 @@ def parse_clash_yaml(content):
         # 直接查找proxies字段，无论它在哪个层级
         if 'proxies' in data:
             if DEBUG_MODE:
-                print(f"从YAML中找到 {len(data['proxies'])} 个节点")
+                logging.info(f"从YAML中找到 {len(data['proxies'])} 个节点")
             return data['proxies']
 
         # 如果没有找到proxies字段，尝试其他可能的字段名
         for key in ['proxy-providers', 'Proxy', 'proxys']:
             if key in data and isinstance(data[key], list):
                 if DEBUG_MODE:
-                    print(f"从YAML的{key}字段中找到 {len(data[key])} 个节点")
+                    logging.info(f"从YAML的{key}字段中找到 {len(data[key])} 个节点")
                 return data[key]
 
-        print("YAML中未找到节点信息")
+        logging.info("YAML中未找到节点信息")
         return []
     except Exception as e:
-        # print(f"解析Clash YAML失败: {str(e)}")
+        # logging.info(f"解析Clash YAML失败: {str(e)}")
         return []
 
 
@@ -433,14 +433,14 @@ def parse_v2ray_base64(content):
             # 确保内容是ASCII兼容的
             content = content.encode('ascii', 'ignore').decode('ascii')
         except UnicodeError:
-            print("Error: Invalid encoding in base64 content")
+            logging.info("Error: Invalid encoding in base64 content")
             return []
 
         try:
             decoded = base64.b64decode(content + '=' * (-len(content) % 4))
             decoded_str = decoded.decode('utf-8', 'ignore')
         except Exception as e:
-            print(f"Error decoding base64 content: {str(e)}")
+            logging.info(f"Error decoding base64 content: {str(e)}")
             return []
 
         nodes = []
@@ -451,7 +451,7 @@ def parse_v2ray_base64(content):
                     nodes.append(node)
         return nodes
     except Exception as e:
-        # print(f"Error parsing V2Ray base64: {str(e)}")
+        # logging.info(f"Error parsing V2Ray base64: {str(e)}")
         return []
 
 
@@ -478,7 +478,7 @@ def parse_v2ray_uri(uri):
                 }
             except json.JSONDecodeError:
                 # 某些情况下vmess可能使用非标准格式
-                print(f"Non-standard vmess format: {uri}")
+                logging.info(f"Non-standard vmess format: {uri}")
                 return None
 
         # 处理trojan协议
@@ -578,7 +578,7 @@ def parse_v2ray_uri(uri):
                             'password': password
                         }
                 except Exception as e:
-                    # print(f"Invalid ss URI format: {uri}, error: {str(e)}")
+                    # logging.info(f"Invalid ss URI format: {uri}, error: {str(e)}")
                     return None
 
         # 处理shadowsocksr协议
@@ -623,7 +623,7 @@ def parse_v2ray_uri(uri):
                         'password': password
                     }
             except Exception as e:
-                # print(f"Error parsing SSR URI: {str(e)}")
+                # logging.info(f"Error parsing SSR URI: {str(e)}")
                 return None
 
         # 处理HTTP/HTTPS协议
@@ -680,7 +680,7 @@ def parse_v2ray_uri(uri):
             }
 
     except Exception as e:
-        # print(f"Error parsing URI: {str(e)}")
+        # logging.info(f"Error parsing URI: {str(e)}")
         return None
 
 
@@ -710,7 +710,7 @@ def extract_nodes(content):
 
             # 检查解码后的内容是否包含任何支持的协议节点
             if any(protocol in decoded_str for protocol in SUPPORTED_PROTOCOLS):
-                print("使用Base64解码提取节点")
+                logging.info("使用Base64解码提取节点")
                 methods_tried.append("Base64")
                 for line in decoded_str.split('\n'):
                     line = line.strip()
@@ -719,14 +719,14 @@ def extract_nodes(content):
                         if node:
                             nodes.append(node)
         except Exception as e:
-            # print(f"Base64解码失败或未找到节点: {str(e)}")
+            # logging.info(f"Base64解码失败或未找到节点: {str(e)}")
             pass
     except Exception as e:
-        print(f"Base64预处理失败: {str(e)}")
+        logging.info(f"Base64预处理失败: {str(e)}")
 
     # 如果已经提取到节点，直接返回
     if len(nodes) > 0:
-        print(f"通过【{methods_tried[-1]}】方法成功提取到{len(nodes)}个节点")
+        logging.info(f"通过【{methods_tried[-1]}】方法成功提取到{len(nodes)}个节点")
         return nodes
 
     # 2. 尝试解析YAML格式
@@ -742,17 +742,17 @@ def extract_nodes(content):
         ]
 
         if any(indicator in cleaned_content for indicator in yaml_indicators):
-            # print("尝试解析YAML格式内容")
+            # logging.info("尝试解析YAML格式内容")
             methods_tried.append("YAML")
 
             # 尝试直接加载YAML
             try:
                 yaml_nodes = parse_clash_yaml(cleaned_content)
                 if yaml_nodes:
-                    # print(f"从YAML中提取到{len(yaml_nodes)}个节点")
+                    # logging.info(f"从YAML中提取到{len(yaml_nodes)}个节点")
                     nodes.extend(yaml_nodes)
             except Exception as yaml_error:
-                print(f"标准YAML解析失败: {str(yaml_error)}")
+                logging.info(f"标准YAML解析失败: {str(yaml_error)}")
 
                 # 如果标准解析失败，尝试更宽松的解析方式
                 try:
@@ -762,21 +762,21 @@ def extract_nodes(content):
                         proxies_yaml = "proxies:\n" + proxies_match.group(1)
                         yaml_nodes = parse_clash_yaml(proxies_yaml)
                         if yaml_nodes:
-                            print(f"从proxies块提取到{len(yaml_nodes)}个节点")
+                            logging.info(f"从proxies块提取到{len(yaml_nodes)}个节点")
                             nodes.extend(yaml_nodes)
                 except Exception as fallback_error:
-                    print(f"尝试解析proxies块失败: {str(fallback_error)}")
+                    logging.info(f"尝试解析proxies块失败: {str(fallback_error)}")
     except Exception as e:
-        print(f"YAML解析过程出错: {str(e)}")
+        logging.info(f"YAML解析过程出错: {str(e)}")
 
     # 如果已经提取到节点，直接返回
     if len(nodes) > 0:
-        print(f"通过【{methods_tried[-1]}】方法成功提取到{len(nodes)}个节点")
+        logging.info(f"通过【{methods_tried[-1]}】方法成功提取到{len(nodes)}个节点")
         return nodes
 
     # 3. 尝试使用正则表达式直接提取
     try:
-        # print("尝试使用正则表达式直接提取节点")
+        # logging.info("尝试使用正则表达式直接提取节点")
         methods_tried.append("正则表达式")
 
         # 为每种支持的协议定义正则表达式并提取
@@ -796,16 +796,16 @@ def extract_nodes(content):
                 if node:
                     nodes.append(node)
     except Exception as e:
-        print(f"正则表达式提取失败: {str(e)}")
+        logging.info(f"正则表达式提取失败: {str(e)}")
 
     # 如果已经提取到节点，直接返回
     if len(nodes) > 0:
-        print(f"通过【{methods_tried[-1]}】方法成功提取到{len(nodes)}个节点")
+        logging.info(f"通过【{methods_tried[-1]}】方法成功提取到{len(nodes)}个节点")
         return nodes
 
     # 4. 尝试解析JSON格式
     try:
-        # print("尝试解析JSON格式")
+        # logging.info("尝试解析JSON格式")
         methods_tried.append("JSON")
 
         # 清理内容，移除可能的HTML标签和注释
@@ -816,7 +816,7 @@ def extract_nodes(content):
             json_data = json.loads(cleaned_content)
             json_nodes = parse_json_nodes(json_data)
             if json_nodes:
-                # print(f"从JSON中提取到{len(json_nodes)}个节点")
+                # logging.info(f"从JSON中提取到{len(json_nodes)}个节点")
                 nodes.extend(json_nodes)
         except json.JSONDecodeError as e:
             # 尝试查找内容中的JSON片段
@@ -828,23 +828,23 @@ def extract_nodes(content):
                         potential_json = json.loads(json_match)
                         json_nodes = parse_json_nodes(potential_json)
                         if json_nodes:
-                            # print(f"从JSON片段中提取到{len(json_nodes)}个节点")
+                            # logging.info(f"从JSON片段中提取到{len(json_nodes)}个节点")
                             nodes.extend(json_nodes)
                             # 找到有效的JSON片段后，不再继续查找
                             break
                     except:
                         continue
             except Exception as extract_error:
-                # print(f"尝试提取JSON片段失败: {str(extract_error)}")
+                # logging.info(f"尝试提取JSON片段失败: {str(extract_error)}")
                 pass
     except Exception as e:
-        print(f"JSON解析过程出错: {str(e)}")
+        logging.info(f"JSON解析过程出错: {str(e)}")
 
     if len(nodes) > 0:
-        print(f"通过【{methods_tried[-1]}】方法成功提取到{len(nodes)}个节点")
+        logging.info(f"通过【{methods_tried[-1]}】方法成功提取到{len(nodes)}个节点")
         return nodes
     else:
-        print("未找到任何节点")
+        logging.info("未找到任何节点")
         return []
 
 
@@ -902,7 +902,7 @@ def parse_single_json_node(item):
                 'plugin_opts': item.get('plugin_opts', '')
             }
         except Exception as e:
-            print(f"解析Shadowsocks节点失败: {str(e)}")
+            logging.info(f"解析Shadowsocks节点失败: {str(e)}")
             return None
 
     # 支持VMess格式
@@ -922,7 +922,7 @@ def parse_single_json_node(item):
                 'host': item.get('host', '')
             }
         except Exception as e:
-            print(f"解析VMess节点失败: {str(e)}")
+            logging.info(f"解析VMess节点失败: {str(e)}")
             return None
 
     # 支持Trojan格式
@@ -938,7 +938,7 @@ def parse_single_json_node(item):
                 'sni': item.get('sni', item.get('peer', ''))
             }
         except Exception as e:
-            print(f"解析Trojan节点失败: {str(e)}")
+            logging.info(f"解析Trojan节点失败: {str(e)}")
             return None
 
     # 支持Clash格式
@@ -971,7 +971,7 @@ def parse_single_json_node(item):
 
                 return node
         except Exception as e:
-            print(f"解析Clash节点失败: {str(e)}")
+            logging.info(f"解析Clash节点失败: {str(e)}")
             return None
 
     return None
@@ -979,7 +979,7 @@ def parse_single_json_node(item):
 
 def download_xray_core():
     """下载Xray核心程序到当前目录"""
-    print("正在自动下载Xray核心程序...")
+    logging.info("正在自动下载Xray核心程序...")
 
     # 检测操作系统类型
     is_windows = platform.system() == "Windows"
@@ -1011,11 +1011,11 @@ def download_xray_core():
                 break
 
         if not download_url:
-            print(f"未找到适合当前平台({file_keyword})的Xray下载链接")
+            logging.info(f"未找到适合当前平台({file_keyword})的Xray下载链接")
             return False
 
         # 下载Xray
-        print(f"下载Xray: https://ghproxy.net/{download_url}")
+        logging.info(f"下载Xray: https://ghproxy.net/{download_url}")
         download_response = requests.get(f"https://ghproxy.net/{download_url}", timeout=120)
         download_response.raise_for_status()
 
@@ -1034,11 +1034,11 @@ def download_xray_core():
             if os.path.exists(xray_path):
                 os.chmod(xray_path, 0o755)
 
-        print(f"Xray核心程序已下载并解压到 {platform_dir}")
+        logging.info(f"Xray核心程序已下载并解压到 {platform_dir}")
         return True
 
     except Exception as e:
-        print(f"下载Xray失败: {str(e)}")
+        logging.info(f"下载Xray失败: {str(e)}")
         return False
 
 
@@ -1061,7 +1061,7 @@ def find_core_program():
     # 检查Xray是否存在
     if os.path.isfile(xray_platform_path) and os.access(xray_platform_path, os.X_OK if not is_windows else os.F_OK):
         CORE_PATH = xray_platform_path
-        print(f"找到Xray核心程序: {CORE_PATH}")
+        logging.info(f"找到Xray核心程序: {CORE_PATH}")
         return CORE_PATH
 
     # 然后检查v2ray-core目录
@@ -1071,7 +1071,7 @@ def find_core_program():
     # 检查V2Ray是否存在
     if os.path.isfile(v2ray_platform_path) and os.access(v2ray_platform_path, os.X_OK if not is_windows else os.F_OK):
         CORE_PATH = v2ray_platform_path
-        print(f"找到V2Ray核心程序: {CORE_PATH}")
+        logging.info(f"找到V2Ray核心程序: {CORE_PATH}")
         return CORE_PATH
 
     # 搜索路径
@@ -1105,26 +1105,26 @@ def find_core_program():
 
         if os.path.isfile(v2ray_path) and os.access(v2ray_path, os.X_OK if not is_windows else os.F_OK):
             CORE_PATH = v2ray_path
-            print(f"找到V2Ray核心程序: {CORE_PATH}")
+            logging.info(f"找到V2Ray核心程序: {CORE_PATH}")
             return CORE_PATH
 
         if os.path.isfile(xray_path) and os.access(xray_path, os.X_OK if not is_windows else os.F_OK):
             CORE_PATH = xray_path
-            print(f"找到XRay核心程序: {CORE_PATH}")
+            logging.info(f"找到XRay核心程序: {CORE_PATH}")
             return CORE_PATH
 
     # 如果未找到核心程序，自动下载Xray
-    print("未找到V2Ray或Xray核心程序，准备自动下载...")
+    logging.info("未找到V2Ray或Xray核心程序，准备自动下载...")
     if download_xray_core():
         # 重新检查Xray是否已下载
         if os.path.isfile(xray_platform_path) and os.access(xray_platform_path, os.X_OK if not is_windows else os.F_OK):
             CORE_PATH = xray_platform_path
-            print(f"已成功下载并使用Xray核心程序: {CORE_PATH}")
+            logging.info(f"已成功下载并使用Xray核心程序: {CORE_PATH}")
             return CORE_PATH
 
     # 如果仍未找到，提示用户手动下载
-    print("自动下载失败。请访问 https://github.com/XTLS/Xray-core/releases 手动下载并安装")
-    print("将Xray核心程序放在当前目录或指定系统路径中")
+    logging.info("自动下载失败。请访问 https://github.com/XTLS/Xray-core/releases 手动下载并安装")
+    logging.info("将Xray核心程序放在当前目录或指定系统路径中")
     return None
 
 
@@ -1384,7 +1384,7 @@ def generate_v2ray_config(node, local_port):
     else:
         # 对于不完全支持的协议，使用简单配置
         if DEBUG_MODE:
-            print(f"警告: 节点类型 {node['type']} 可能不被完全支持，使用基本配置")
+            logging.info(f"警告: 节点类型 {node['type']} 可能不被完全支持，使用基本配置")
         return None
 
     return config
@@ -1394,7 +1394,7 @@ def _test_node_latency(node):
     """使用核心程序测试节点延迟"""
     if not CORE_PATH:
         if DEBUG_MODE:
-            print("未找到核心程序，无法进行延迟测试")
+            logging.info("未找到核心程序，无法进行延迟测试")
         return -1
 
     # 为测试创建临时目录
@@ -1455,7 +1455,7 @@ def _test_node_latency(node):
         for test_url in TEST_URLS:
             try:
                 if DEBUG_MODE:
-                    print(f"测试节点: {node['name']} - 尝试URL: {test_url}")
+                    logging.info(f"测试节点: {node['name']} - 尝试URL: {test_url}")
 
                 response = requests.get(
                     test_url,
@@ -1467,24 +1467,24 @@ def _test_node_latency(node):
                 if response.status_code in [200, 204]:
                     latency = int((time.time() - start_time) * 1000)
                     if DEBUG_MODE:
-                        print(f"测试成功: {node['name']} - URL: {test_url} - 延迟: {latency}ms")
+                        logging.info(f"测试成功: {node['name']} - URL: {test_url} - 延迟: {latency}ms")
                     return latency
                 else:
                     if DEBUG_MODE:
-                        print(f"测试URL状态码错误: {response.status_code}")
+                        logging.info(f"测试URL状态码错误: {response.status_code}")
             except Exception as e:
                 if DEBUG_MODE:
-                    print(f"测试失败: {test_url} - 错误: {str(e)}")
+                    logging.info(f"测试失败: {test_url} - 错误: {str(e)}")
                 continue  # 尝试下一个URL
 
         # 所有URL测试都失败
         if DEBUG_MODE:
-            print(f"节点 {node['name']} 所有测试URL都失败")
+            logging.info(f"节点 {node['name']} 所有测试URL都失败")
         return -1
 
     except Exception as e:
         if DEBUG_MODE:
-            print(f"测试节点 {node['name']} 时发生错误: {str(e)}")
+            logging.info(f"测试节点 {node['name']} 时发生错误: {str(e)}")
         return -1
 
     finally:
@@ -1507,7 +1507,7 @@ def _test_latency(node):
     """测试节点延迟"""
     # 必须有核心程序才能进行测试
     if not CORE_PATH:
-        print(f"未找到核心程序，无法测试节点: {node['name']}")
+        logging.info(f"未找到核心程序，无法测试节点: {node['name']}")
         return -1
 
     # 使用核心程序进行精确测试
@@ -1521,18 +1521,18 @@ def process_node(node):
     if not node or 'name' not in node or 'server' not in node:
         return None
 
-    # print(f"测试节点: {node['name']} [{node['type']}] - {node['server']}:{node['port']}")
+    # logging.info(f"测试节点: {node['name']} [{node['type']}] - {node['server']}:{node['port']}")
     latency = _test_latency(node)
 
     # 过滤掉延迟为0ms或连接失败的节点或者连接超过1000ms
     if latency < 0 or latency > 1000:
         # status = "连接失败" if latency == -1 else "延迟为0ms"
-        # print(f"节点: {node['name']} ，{status}，跳过")
+        # logging.info(f"节点: {node['name']} ，{status}，跳过")
         return None
 
     # 更新节点名称，添加延迟信息
     node['name'] = f"{node['name']} [{latency}ms]"
-    print(f"有效节点: {node['name']} ，延迟: {latency}ms")
+    logging.info(f"有效节点: {node['name']} ，延迟: {latency}ms")
     return node
 
 
@@ -1642,10 +1642,10 @@ def _fetch_and_extract(link: str) -> list[dict]:
             resp = session.get(link, timeout=10)
             resp.raise_for_status()
             nodes = extract_nodes(resp.text)
-            print(f"  ✓ 完成：{link}，提取 {len(nodes)} 个节点")
+            logging.info(f"  ✓ 完成：{link}，提取 {len(nodes)} 个节点")
             return nodes
     except Exception as e:
-        print(f"[WARN] 拉取/解析失败：{link} -> {e}")
+        logging.warning(f"[WARN] 拉取/解析失败：{link} -> {e}")
         return []
 
 
@@ -1667,9 +1667,9 @@ def gather_all_nodes(sub_links: list[str], max_workers: int | None = None) -> li
                 all_nodes.extend(nodes)
             except Exception as e:
                 link = future_to_link[future]
-                print(f"[ERROR] 处理 {link} 的线程异常：{e}")
+                logging.error(f"[ERROR] 处理 {link} 的线程异常：{e}")
 
-    print(f"全部完成，总计提取节点：{len(all_nodes)}")
+    logging.info(f"全部完成，总计提取节点：{len(all_nodes)}")
     return all_nodes
 
 
@@ -1701,22 +1701,22 @@ def _test_all_nodes_latency(
                 if result:
                     # 假设 result 中包含延迟字段 'latency'
                     latency = result.get("latency")
-                    print(f"[{done}/{total}] ✓ 节点 {nid} 测试通过" +
-                          (f"，延迟：{latency} ms" if latency is not None else ""))
+                    logging.info(f"[{done}/{total}] ✓ 节点 {nid} 测试通过" +
+                                 (f"，延迟：{latency} ms" if latency is not None else ""))
                     valid.append(result)
                 else:
-                    print(f"[{done}/{total}] ✗ 节点 {nid} 无效，已跳过")
+                    logging.info(f"[{done}/{total}] ✗ 节点 {nid} 无效，已跳过")
             except Exception as e:
-                print(f"[{done}/{total}] ⚠ 节点 {nid} 测试异常：{e!r}")
+                logging.info(f"[{done}/{total}] ⚠ 节点 {nid} 测试异常：{e!r}")
 
-    print(f"\n测试完成：共处理 {total} 个节点，其中 {len(valid)} 个有效，{total - len(valid)} 个无效/失败")
+    logging.info(f"\n测试完成：共处理 {total} 个节点，其中 {len(valid)} 个有效，{total - len(valid)} 个无效/失败")
     return valid
 
 
 def save_results(nodes: list[dict]) -> None:
     """将节点列表转为 V2Ray URI，保存为 base64 和原始文本。"""
     if not nodes:
-        print("未找到有效节点，不生成文件")
+        logging.info("未找到有效节点，不生成文件")
         return
 
     V2RAY_DIR.mkdir(exist_ok=True)
@@ -1725,10 +1725,10 @@ def save_results(nodes: list[dict]) -> None:
     b64 = base64.b64encode(raw.encode()).decode()
 
     (V2RAY_DIR / "v2ray.txt").write_text(b64, encoding="utf-8")
-    print(f"已保存 {len(uris)} 条节点（base64）到 {V2RAY_DIR / 'v2ray.txt'}")
+    logging.info(f"已保存 {len(uris)} 条节点（base64）到 {V2RAY_DIR / 'v2ray.txt'}")
 
     (V2RAY_DIR / "v2ray_raw.txt").write_text(raw, encoding="utf-8")
-    print(f"已保存原始文本到 {V2RAY_DIR / 'v2ray_raw.txt'}")
+    logging.info(f"已保存原始文本到 {V2RAY_DIR / 'v2ray_raw.txt'}")
 
 
 def init():
