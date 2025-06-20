@@ -1,4 +1,4 @@
-aggSubs: # https://raw.githubusercontent.com/cmliu/cmliu/main/SubsCheck-URLs
+aggSubs: https://raw.githubusercontent.com/cmliu/cmliu/main/SubsCheck-URLs
 subscriptions:
 - https://ghproxy.net/https://raw.githubusercontent.com/xiaoer8867785/jddy5/main/data/{Y_m_d}/{x}.yaml
 - https://ghproxy.net/https://raw.githubusercontent.com/firefoxmmx2/v2rayshare_subcription/main/subscription/clash_sub.yaml
