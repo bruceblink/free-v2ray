@@ -1,24 +1,25 @@
-from pathlib import Path
-import requests
 import base64
-import yaml
-import json
-import socket
-import time
-import re
-import os
-import shutil
-import tempfile
-import platform
-import subprocess
-import random
-import zipfile
 import io
-from datetime import datetime
-from urllib.parse import urlparse, parse_qs, unquote
+import json
+import os
+import platform
+import random
+import re
+import shutil
+import socket
+import subprocess
+import tempfile
+import time
+import zipfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime
+from pathlib import Path
+from urllib.parse import urlparse, parse_qs, unquote
+
+import requests
+import yaml
+
 from config.settings import Settings
-from utils.network_utils import HttpRequestTool
 
 # 支持的协议类型列表
 SUPPORTED_PROTOCOLS = [
@@ -270,8 +271,10 @@ def fetch_content(url):
 
         # 模拟Chrome浏览器请求头，与curl命令类似
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) '
+                          'Chrome/134.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,'
+                      '*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
             'Accept-Language': 'zh-CN,zh;q=0.9',
             'Cache-Control': 'no-cache',
             'DNT': '1',
@@ -817,7 +820,7 @@ def extract_nodes(content):
             # 尝试查找内容中的JSON片段
             try:
                 # 查找类似于 [{...}] 或 {...} 形式的JSON
-                json_matches = re.findall(r'(\[{.*?}\]|\{.*?\})', cleaned_content, re.DOTALL)
+                json_matches = re.findall(r'(\[{.*?}]|\{.*?})', cleaned_content, re.DOTALL)
                 for json_match in json_matches:
                     try:
                         potential_json = json.loads(json_match)
@@ -901,7 +904,7 @@ def parse_single_json_node(item):
             return None
 
     # 支持VMess格式
-    elif ('add' in item and 'port' in item and 'id' in item):
+    elif 'add' in item and 'port' in item and 'id' in item:
         try:
             return {
                 'type': 'vmess',
@@ -1644,7 +1647,7 @@ def _fetch_and_extract(link: str) -> list[dict]:
         return []
 
 
-def gather_all_nodes(sub_links: list[str], max_workers: int|None = None) -> list[dict]:
+def gather_all_nodes(sub_links: list[str], max_workers: int | None = None) -> list[dict]:
     """
     并发拉取并解析所有订阅链接（I/O 密集型），返回聚合后的节点列表。
     """
