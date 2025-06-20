@@ -48,7 +48,7 @@ jobs:
         run: python main.py
         timeout-minutes: 150
         env:
-          MAX_CONCURRENT_TESTS: 50  # 自定义并发数
+          MAX_CONCURRENT_TESTS: 200  # 自定义并发数
 
       - name: Validate output
         id: validation

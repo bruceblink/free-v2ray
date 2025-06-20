@@ -9,7 +9,6 @@ import yaml
 class Settings:
     # 基础配置
     REQUEST_TIMEOUT = 1
-    MAX_CONCURRENT = 50
     USER_AGENT = os.getenv("USER_AGENT", "Mozilla/5.0")
 
     # 项目根目录路径配置

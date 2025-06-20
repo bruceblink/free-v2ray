@@ -45,7 +45,6 @@ TEST_URLS = [
     "http://www.gstatic.com/generate_204",  # Google测试
 ]
 CONNECTION_TIMEOUT = 10  # 连接超时时间，单位为秒
-MAX_CONCURRENT_TESTS = 100  # 最大并发测试数量
 DEBUG_MODE = False  # 默认开启调试模式，方便查看处理过程
 
 # 核心程序配置
@@ -1759,7 +1758,7 @@ def main():
     logging.info(f"共 {len(sub_links)} 条订阅链接")
 
     # 2. 获取并解析所有节点
-    all_nodes = gather_all_nodes(sub_links)
+    all_nodes = gather_all_nodes(sub_links, 10)
     logging.info(f"提取到节点总数：{len(all_nodes)}")
 
     # 3. 去重
