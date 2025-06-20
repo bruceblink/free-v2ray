@@ -53,13 +53,14 @@ jobs:
       - name: Validate output
         id: validation
         run: |
+          v2rayfile = "v2ray/v2ray.txt"
           # 检查文件存在性、大小和基本格式
-          if [ ! -f "v2ray.txt" ]; then
+          if [ ! -f "$v2rayfile" ]; then
             echo "::error::Output file not found"
             exit 1
           fi
           
-          filesize=$(wc -c <"v2ray.txt")
+          filesize=$(wc -c <"$v2rayfile")
           if [ "$filesize" -lt 100 ]; then
             echo "::error::File size too small (${filesize} bytes)"
             exit 2
