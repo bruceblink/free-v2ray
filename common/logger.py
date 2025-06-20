@@ -131,15 +131,6 @@ class Logger:
         cls._configured = True
         cls._instance = logger
 
-    @classmethod
-    def get_logger(cls) -> _LoggerClass:
-        """
-        获取全局 logger，若未配置则先初始化。
-        """
-        if not cls._configured:
-            cls._configure()
-        return cls._instance
-
 
 if __name__ == '__main__':
     # 示例：初始化 Logger
@@ -152,11 +143,9 @@ if __name__ == '__main__':
         colored=True
     )
 
-    # 获取 Logger 实例
-    log = Logger.get_logger()
     # 测试日志输出
-    log.info('Logger 初始化成功')
-    log.debug('这是一个调试信息')
-    log.warning('这是一个警告信息')
-    log.error('这是一个错误信息')
-    log.critical('这是一个严重错误信息')
+    logging.info('Logger 初始化成功')
+    logging.debug('这是一个调试信息')
+    logging.warning('这是一个警告信息')
+    logging.error('这是一个错误信息')
+    logging.critical('这是一个严重错误信息')
