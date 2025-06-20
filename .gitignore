@@ -1,2 +1,5 @@
 /xray-core/
 .idea/
+/logs
+/.vscode/
+/.logs
