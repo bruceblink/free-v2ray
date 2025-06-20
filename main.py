@@ -1683,7 +1683,7 @@ def _test_all_nodes_latency(
     valid: list[dict] = []
     total = len(nodes)
     done = 0
-    max_workers = min(100, os.cpu_count() * 10) if max_workers is None else max_workers
+    max_workers = Settings.THREAD_POOL_SIZE if max_workers is None else max_workers
     logging.info(f"开始测试节点延迟，总共 {total} 个节点，使用线程池最大并发数：{max_workers}")
     with ThreadPoolExecutor(max_workers=max_workers) as pool:
         # 提交所有任务
@@ -1758,7 +1758,7 @@ def main():
     logging.info(f"共 {len(sub_links)} 条订阅链接")
 
     # 2. 获取并解析所有节点
-    all_nodes = gather_all_nodes(sub_links, 10)
+    all_nodes = gather_all_nodes(sub_links)
     logging.info(f"提取到节点总数：{len(all_nodes)}")
 
     # 3. 去重
@@ -1766,7 +1766,7 @@ def main():
     logging.info(f"去重后节点数量：{len(unique_nodes)}")
 
     # 4. 测试延迟
-    valid_nodes = _test_all_nodes_latency(unique_nodes)
+    valid_nodes = _test_all_nodes_latency(unique_nodes, 100)
     logging.info(f"有效节点数量：{len(valid_nodes)}")
 
     # 5. 保存结果
