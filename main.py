@@ -22,6 +22,7 @@ import yaml
 
 from common.logger import Logger
 from config.settings import Settings
+from utils import utils
 
 # 支持的协议类型列表
 SUPPORTED_PROTOCOLS = [
@@ -1736,7 +1737,7 @@ def init():
     Settings.setup()
     Logger.init(
         level=logging.DEBUG,
-        log_file='logs/app.log',
+        log_file=f"logs/app_{utils.iso_date_dd}.log",
         max_bytes=10_000_000,
         backup_count=5,
         console=True,
