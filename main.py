@@ -1,3 +1,4 @@
+from pathlib import Path
 import requests
 import base64
 import yaml
@@ -1418,7 +1419,8 @@ def _test_node_latency(node):
 
         # 设置与V2RayN相同的请求头
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) '
+                          'Chrome/110.0.0.0 Safari/537.36',
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
             'Accept-Language': 'zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2'
         }
@@ -1608,89 +1610,148 @@ def node_to_v2ray_uri(node):
     return None
 
 
+V2RAY_DIR = Path("v2ray")
+
+
+def load_subscriptions(config: dict) -> list[str]:
+    """加载并合并配置中的订阅链接和汇聚订阅链接，去重后返回列表。"""
+    subs = config.get("subscriptions", [])
+    agg_url = config.get("aggSubs")
+
+    if agg_url:
+        resp = requests.get(agg_url, timeout=10)
+        if resp.ok:
+            subs.extend(resp.text.splitlines())
+
+    # 去重且保持顺序
+    return list(dict.fromkeys(subs))
+
+
+def _fetch_and_extract(link: str) -> list[dict]:
+    """
+    线程中运行：拉取订阅、提取节点列表。
+    返回一个节点字典列表，失败时返回空列表。
+    """
+    try:
+        with requests.Session() as session:
+            resp = session.get(link, timeout=10)
+            resp.raise_for_status()
+            nodes = extract_nodes(resp.text)
+            print(f"  ✓ 完成：{link}，提取 {len(nodes)} 个节点")
+            return nodes
+    except Exception as e:
+        print(f"[WARN] 拉取/解析失败：{link} -> {e}")
+        return []
+
+
+def gather_all_nodes(sub_links: list[str], max_workers: int|None = None) -> list[dict]:
+    """
+    并发拉取并解析所有订阅链接（I/O 密集型），返回聚合后的节点列表。
+    """
+    print("开始并发获取节点信息（多线程）...")
+    all_nodes: list[dict] = []
+
+    # 不指定 max_workers 时，ThreadPoolExecutor 会使用 min(32, os.cpu_count() + 4)
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        future_to_link = {executor.submit(_fetch_and_extract, link): link for link in sub_links}
+        for future in as_completed(future_to_link):
+            # 即使 _fetch_and_extract 已经捕获了异常，这里也做一层保险
+            try:
+                nodes = future.result()
+                all_nodes.extend(nodes)
+            except Exception as e:
+                link = future_to_link[future]
+                print(f"[ERROR] 处理 {link} 的线程异常：{e}")
+
+    print(f"全部完成，总计提取节点：{len(all_nodes)}")
+    return all_nodes
+
+
+def _test_all_nodes_latency(
+        nodes: list[dict],
+        max_workers: int | None = None
+) -> list[dict]:
+    """
+    并发测试各节点延迟，返回有效节点列表，并打印详细进度提示。
+    """
+    valid: list[dict] = []
+    total = len(nodes)
+    done = 0
+
+    print(f"开始测试节点延迟，总共 {total} 个节点，使用线程池最大并发数：{max_workers or '默认'}\n")
+
+    with ThreadPoolExecutor(max_workers=max_workers) as pool:
+        # 提交所有任务
+        future_to_node = {pool.submit(process_node, node): node for node in nodes}
+
+        for future in as_completed(future_to_node):
+            node = future_to_node[future]
+            done += 1
+
+            # 标识该节点的简要标识（优先 id，其次 uri，其次索引）
+            nid = f"{node.get("server")}:{node.get("port", 'N/A')}" \
+                if node.get("server") and node.get("port") else f"index#{done}"
+            try:
+                result = future.result()
+                if result:
+                    # 假设 result 中包含延迟字段 'latency'
+                    latency = result.get("latency")
+                    print(f"[{done}/{total}] ✓ 节点 {nid} 测试通过" +
+                          (f"，延迟：{latency} ms" if latency is not None else ""))
+                    valid.append(result)
+                else:
+                    print(f"[{done}/{total}] ✗ 节点 {nid} 无效，已跳过")
+            except Exception as e:
+                print(f"[{done}/{total}] ⚠ 节点 {nid} 测试异常：{e!r}")
+
+    print(f"\n测试完成：共处理 {total} 个节点，其中 {len(valid)} 个有效，{total - len(valid)} 个无效/失败")
+    return valid
+
+
+def save_results(nodes: list[dict]) -> None:
+    """将节点列表转为 V2Ray URI，保存为 base64 和原始文本。"""
+    if not nodes:
+        print("未找到有效节点，不生成文件")
+        return
+
+    V2RAY_DIR.mkdir(exist_ok=True)
+    uris = [node_to_v2ray_uri(n) for n in nodes if node_to_v2ray_uri(n)]
+    raw = "\n".join(uris)
+    b64 = base64.b64encode(raw.encode()).decode()
+
+    (V2RAY_DIR / "v2ray.txt").write_text(b64, encoding="utf-8")
+    print(f"已保存 {len(uris)} 条节点（base64）到 {V2RAY_DIR / 'v2ray.txt'}")
+
+    (V2RAY_DIR / "v2ray_raw.txt").write_text(raw, encoding="utf-8")
+    print(f"已保存原始文本到 {V2RAY_DIR / 'v2ray_raw.txt'}")
+
+
 def main():
-    global CORE_PATH
+    # 初始化
     Settings.setup()
     config = Settings.load_config()
-    # 获取汇聚订阅的数据
-    agg_subs_content = HttpRequestTool().set_base_url(config["aggSubs"]).get("")
-    # 拆分汇聚订阅的内容
-    agg_subs = []
-    if agg_subs_content:
-        agg_subs = agg_subs_content.text.split("\n")
-    # 配置文件中的订阅链接
-    config_links = config["subscriptions"]
-    # 合并汇聚订阅和普通订阅的地址
-    agg_subs.extend(config_links)
-    # Python 3.7后的list去重
-    dedup_links = list(dict.fromkeys(agg_subs))
-    # 查找核心程序
-    CORE_PATH = find_core_program()
+    core_path = find_core_program()
+    print(f"核心程序路径：{core_path}")
 
-    all_nodes = []
+    # 1. 加载并去重订阅
+    sub_links = load_subscriptions(config)
+    print(f"共 {len(sub_links)} 条订阅链接")
 
-    # 获取并解析所有订阅
-    print("\n开始获取节点信息...")
-    for link in dedup_links:
-        print(f"\n正在处理订阅链接: {link}")
-        content = fetch_content(link)
-        if not content:
-            print("获取失败，跳过该链接")
-            continue
+    # 2. 获取并解析所有节点
+    all_nodes = gather_all_nodes(sub_links)
+    print(f"提取到节点总数：{len(all_nodes)}")
 
-        # 使用新的级联提取函数
-        nodes = extract_nodes(content)
-        # print(f"成功提取 {len(nodes)} 个节点")
-        all_nodes.extend(nodes)
+    # 3. 去重
+    unique_nodes = deduplicate_nodes(all_nodes)
+    print(f"去重后节点数量：{len(unique_nodes)}")
 
-    # 节点去重
-    print(f"去重前节点数量: {len(all_nodes)}")
-    all_nodes = deduplicate_nodes(all_nodes)
-    print(f"去重后节点数量: {len(all_nodes)}")
+    # 4. 测试延迟
+    valid_nodes = _test_all_nodes_latency(unique_nodes)
+    print(f"有效节点数量：{len(valid_nodes)}")
 
-    # 暂时只测试获取节点信息
-    # return
-
-    # 使用线程池并发测试节点延迟
-    print(f"\n开始测试节点延迟...")
-    valid_nodes = []
-    # 限制并发数量，避免资源耗尽
-    with ThreadPoolExecutor(max_workers=MAX_CONCURRENT_TESTS) as executor:
-        future_to_node = {executor.submit(process_node, node): node for node in all_nodes}
-        for future in as_completed(future_to_node):
-            processed_node = future.result()
-            if processed_node:
-                valid_nodes.append(processed_node)
-
-    print(f"\n测试完成，有效节点数量: {len(valid_nodes)}")
-
-    # 收集所有有效节点的URI
-    valid_uris = []
-    valid_uri_count = 0
-    for node in valid_nodes:
-        uri = node_to_v2ray_uri(node)
-        if uri:
-            valid_uris.append(uri)
-            valid_uri_count += 1
-
-    # 将所有URI合并为一个字符串，并进行base64编码
-    if valid_uri_count > 0:
-        uri_content = '\n'.join(valid_uris)
-        base64_content = base64.b64encode(uri_content.encode('utf-8')).decode('utf-8')
-
-        # 将base64编码后的内容写入文件
-        with open('v2ray/v2ray.txt', 'w', encoding='utf-8') as f:
-            f.write(base64_content)
-
-        print(f"\n已将 {valid_uri_count} 个有效节点以base64编码保存到 v2ray.txt 文件")
-
-        # 同时保存一个原始文本版本，方便查看
-        with open('v2ray_raw.txt', 'w', encoding='utf-8') as f:
-            f.write(uri_content)
-        print(f"同时保存了原始文本版本到 v2ray_raw.txt 文件")
-    else:
-        print("\n未找到有效节点，不生成文件")
+    # 5. 保存结果
+    save_results(valid_nodes)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
