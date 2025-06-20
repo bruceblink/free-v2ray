@@ -24,8 +24,22 @@ class Settings:
     # 线程池大小
     THREAD_POOL_SIZE = min(100, os.cpu_count() * 10)
 
+    # v2ray.txt存放目录
+    V2RAY_DIR = BASE_DIR / Path("v2ray")
+
+    def __init__(self):
+        """初始化配置"""
+        self.config = self._load_config()
+
     @classmethod
-    def load_config(cls) -> Dict[str, Any]:
+    def setup(cls):
+        """初始化目录结构及加载配置文件"""
+        cls.XRAY_CORE_DIR.mkdir(exist_ok=True)
+        cls.OUTPUT_DIR.mkdir(exist_ok=True)
+        cls.V2RAY_DIR.mkdir(exist_ok=True)
+
+    @classmethod
+    def _load_config(cls) -> Dict[str, Any]:
         """加载YAML配置文件"""
         if not cls.CONFIG_FILE.exists():
             raise FileNotFoundError(f"配置文件 {cls.CONFIG_FILE} 不存在")
@@ -33,12 +47,6 @@ class Settings:
         with open(cls.CONFIG_FILE, "r", encoding="utf-8") as f:
             logging.info(f"加载配置文件: {cls.CONFIG_FILE}")
             return yaml.safe_load(f)
-
-    @classmethod
-    def setup(cls):
-        """初始化目录结构"""
-        cls.XRAY_CORE_DIR.mkdir(exist_ok=True)
-        cls.OUTPUT_DIR.mkdir(exist_ok=True)
 
 
 class TestSettings(TestCase):
@@ -53,3 +61,10 @@ class TestSettings(TestCase):
         self.assertEqual(Settings.THREAD_POOL_SIZE,100)
         self.assertEqual(os.cpu_count(),24)
 
+    def test_conf(self):
+        """测试配置文件加载"""
+        settings = Settings()
+        _conf = settings.config
+        self.assertIsInstance(_conf, dict)
+        self.assertEqual(_conf.get("aggSubs"), str("https://raw.githubusercontent.com/cmliu/cmliu/main/SubsCheck-URLs"))
+        self.assertIsInstance(_conf.get("subscriptions"), list)
