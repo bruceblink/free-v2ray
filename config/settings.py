@@ -1,3 +1,4 @@
+import logging
 import os
 from pathlib import Path
 from typing import Dict, Any
@@ -27,6 +28,7 @@ class Settings:
             raise FileNotFoundError(f"配置文件 {cls.CONFIG_FILE} 不存在")
 
         with open(cls.CONFIG_FILE, "r", encoding="utf-8") as f:
+            logging.info(f"加载配置文件: {cls.CONFIG_FILE}")
             return yaml.safe_load(f)
 
     @classmethod
