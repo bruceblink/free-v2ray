@@ -7,7 +7,7 @@ from logging.handlers import RotatingFileHandler
 
 class Logger:
     """
-    全局 Logger 单例，支持控制台彩色输出和文件滚动。
+    全局 Logger 单例，支持控制台输出和彩色日志以及文件滚动。
 
     使用示例：
         Logger.init(
@@ -22,7 +22,7 @@ class Logger:
     _configured: bool = False
 
     def __new__(cls, *args, **kwargs):
-        # 永远返回同一个实例
+        # 始终返回同一个实例
         if cls._instance is None:
             cls._instance = super().__new__(cls)
         return cls._instance
@@ -39,9 +39,15 @@ class Logger:
             force: bool = False
     ) -> None:
         """
-        初始化全局 logger，只执行一次（或在 force=True 时重新配置）。
-        - colored: 控制台彩色输出，依赖 colorlog 库
-        - log_file: 指定单一日志文件路径
+        初始化全局 logger，只执行一次（除非 force=True 强制重置）。
+
+        参数：
+        - level: 日志级别，优先级高于环境变量
+        - log_file: 日志文件路径，如果不需要文件输出可传入 None 或 ''
+        - max_bytes, backup_count: 滚动文件配置
+        - console: 是否输出到控制台
+        - colored: 控制台输出是否启用彩色（依赖 colorlog）
+        - force: 是否强制重新配置
         """
         cls._configure(
             level=level,
@@ -70,26 +76,31 @@ class Logger:
         if cls._configured and not force:
             return
 
+        # 先确定最终生效的日志级别
+        env = os.getenv('LOG_LEVEL') or ('DEBUG' if os.getenv('DEBUG') else 'INFO')
+        effective_level = level or getattr(logging, env.upper(), logging.INFO)
+
         logger = logging.getLogger()
         if force:
+            # 移除已有 handler
             for handler in list(logger.handlers):
                 logger.removeHandler(handler)
-        logger.setLevel(logging.DEBUG)
 
-        env = os.getenv('LOG_LEVEL') or ('DEBUG' if os.getenv('DEBUG') else 'INFO')
-        level = level or getattr(logging, env.upper(), logging.INFO)
+        # 设置根 logger 级别
+        logger.setLevel(effective_level)
 
-        # 更新格式，包含毫秒、行号、函数名、线程ID
-        base_fmt = ("%(asctime)s.%(msecs)03d %(levelname)-8s [%(filename)s:%(lineno)d %(funcName)s] [Thread-%("
-                    "thread)d] %(message)s")
-        _datefmt = "%Y-%m-%d %H:%M:%S"
+        # 日志格式，包含毫秒、文件行号、函数名、线程 ID
+        base_fmt = (
+            "%(asctime)s.%(msecs)03d %(levelname)-8s [%(filename)s:%(lineno)d %(funcName)s] "
+            "[Thread-%(thread)d] %(message)s"
+        )
+        datefmt = "%Y-%m-%d %H:%M:%S"
 
         # 控制台输出
         if console:
             if colored:
                 try:
                     from colorlog import ColoredFormatter
-                    # 定义默认颜色映射
                     log_colors = {
                         'DEBUG': 'cyan',
                         'INFO': 'green',
@@ -97,23 +108,19 @@ class Logger:
                         'ERROR': 'red',
                         'CRITICAL': 'bold_red'
                     }
-                    color_fmt = "%(log_color)s" + base_fmt
-                    stream_handler = StreamHandler(sys.stdout)
-                    stream_handler.setLevel(level)
-                    stream_handler.setFormatter(ColoredFormatter(
-                        color_fmt,
-                        datefmt=_datefmt,
-                        log_colors=log_colors
-                    ))
+                    fmt = "%(log_color)s" + base_fmt
+                    handler = StreamHandler(sys.stdout)
+                    handler.setLevel(effective_level)
+                    handler.setFormatter(ColoredFormatter(fmt, datefmt=datefmt, log_colors=log_colors))
                 except ImportError:
-                    stream_handler = StreamHandler(sys.stdout)
-                    stream_handler.setLevel(level)
-                    stream_handler.setFormatter(Formatter(base_fmt, datefmt=_datefmt))
+                    handler = StreamHandler(sys.stdout)
+                    handler.setLevel(effective_level)
+                    handler.setFormatter(Formatter(base_fmt, datefmt=datefmt))
             else:
-                stream_handler = StreamHandler(sys.stdout)
-                stream_handler.setLevel(level)
-                stream_handler.setFormatter(Formatter(base_fmt, datefmt=_datefmt))
-            logger.addHandler(stream_handler)
+                handler = StreamHandler(sys.stdout)
+                handler.setLevel(effective_level)
+                handler.setFormatter(Formatter(base_fmt, datefmt=datefmt))
+            logger.addHandler(handler)
 
         # 文件输出
         if log_file:
@@ -124,12 +131,19 @@ class Logger:
                 backupCount=backup_count,
                 encoding='utf-8'
             )
-            file_handler.setLevel(level)
-            file_handler.setFormatter(Formatter(base_fmt, datefmt=_datefmt))
+            file_handler.setLevel(effective_level)
+            file_handler.setFormatter(Formatter(base_fmt, datefmt=datefmt))
             logger.addHandler(file_handler)
 
         cls._configured = True
         cls._instance = logger
+
+    @classmethod
+    def get(cls) -> _LoggerClass:
+        """获取已初始化的全局 Logger 实例"""
+        if cls._instance is None or not cls._configured:
+            raise RuntimeError("Logger 尚未初始化，请先调用 Logger.init()")
+        return cls._instance
 
 
 if __name__ == '__main__':
