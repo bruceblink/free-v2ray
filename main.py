@@ -14,7 +14,6 @@ import time
 import zipfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
-from pathlib import Path
 from urllib.parse import urlparse, parse_qs, unquote
 
 import requests
@@ -1660,7 +1659,7 @@ def gather_all_nodes(sub_links: list[str], max_workers: int | None = None) -> li
     all_nodes: list[dict] = []
 
     # 不指定 max_workers 时，ThreadPoolExecutor 会使用 min(32, os.cpu_count() + 4)
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+    with ThreadPoolExecutor(max_workers=40) as executor:
         future_to_link = {executor.submit(_fetch_and_extract, link): link for link in sub_links}
         for future in as_completed(future_to_link):
             # 即使 _fetch_and_extract 已经捕获了异常，这里也做一层保险
@@ -1768,7 +1767,7 @@ def main():
     logging.info(f"去重后节点数量：{len(unique_nodes)}")
 
     # 4. 测试延迟
-    valid_nodes = _test_all_nodes_latency(unique_nodes, 100)
+    valid_nodes = _test_all_nodes_latency(unique_nodes)
     logging.info(f"有效节点数量：{len(valid_nodes)}")
 
     # 5. 保存结果

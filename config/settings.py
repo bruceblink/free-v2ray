@@ -22,7 +22,7 @@ class Settings:
     SUPPORTED_PROTOCOLS = ["vmess", "vless"]
 
     # 线程池大小
-    THREAD_POOL_SIZE = min(100, os.cpu_count() * 10)
+    THREAD_POOL_SIZE = min(100, os.cpu_count() * 3)
 
     # v2ray.txt存放目录
     V2RAY_DIR = BASE_DIR / Path("v2ray")
