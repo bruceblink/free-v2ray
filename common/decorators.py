@@ -4,48 +4,148 @@ import threading
 import time
 from collections import defaultdict
 from functools import wraps
-from typing import Callable, Any
+from typing import Any, Callable, Tuple, Optional
 
 from common.constants import TIME_OUT_5
 
 
+# ===== 同步版 retry =====
 def retry(
         retries: int = 3,
         delay: float = 5,
         retry_condition: Callable[[Any], bool] = lambda result: not result,
-        exceptions: tuple = (Exception,)
+        exceptions: Tuple[type, ...] = (Exception,),
 ):
     """
-    自动重试装饰器。
+    同步函数重试装饰器。
 
-    参数：
-    - retries: 最大重试次数。
-    - delay: 每次重试的间隔时间（秒）。
-    - retry_condition: 一个函数，接受返回值，返回 True 表示需要重试。
-    - exceptions: 哪些异常会触发重试。
+    - retries: 最大重试次数
+    - delay: 每次重试等待秒数
+    - retry_condition: 返回 True 时触发重试
+    - exceptions: 哪些异常需要重试
     """
 
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
+            last_exc: Optional[BaseException] = None
             for attempt in range(1, retries + 1):
                 try:
-                    logging.info(f"\n{'=' * 40}\n第 {attempt} 次尝试\n{'=' * 40}")
+                    logging.info(f"\n==== Sync Retry 第 {attempt} 次 ====")
                     result = func(*args, **kwargs)
-                    try:
-                        if not retry_condition(result):
-                            return result
-                        logging.warning("条件未满足，准备重试...")
-                    except Exception as inner:
-                        logging.error(f"重试判断条件出错：{inner}")
+                    # 只有当 retry_condition 返回 True 时，才继续重试
+                    if not retry_condition(result):
                         return result
-                except exceptions as e:
-                    logging.warning(f"第 {attempt} 次调用发生异常：{e}")
+                    logging.warning("条件未满足，准备重试…")
+                except exceptions as exc:
+                    last_exc = exc
+                    logging.warning(f"第 {attempt} 次调用异常：{exc!r}")
                 if attempt < retries:
-                    logging.info(f"等待 {delay} 秒后进行下一次尝试...")
+                    logging.info(f"等待 {delay}s 后重试…")
                     time.sleep(delay)
-            logging.error("重试次数已耗尽，操作失败。")
+            logging.error("重试次数用尽（Sync），操作失败。")
+            if last_exc:
+                raise last_exc
             return None
+
+        return wrapper
+
+    return decorator
+
+
+# ===== 异步版 retry =====
+def retry_async(
+        retries: int = 3,
+        delay: float = 5,
+        retry_condition: Callable[[Any], bool] = lambda result: not result,
+        exceptions: Tuple[type, ...] = (Exception,),
+):
+    """
+    异步函数重试装饰器。
+
+    - retries: 最大重试次数
+    - delay: 每次重试等待秒数
+    - retry_condition: 返回 True 时触发重试
+    - exceptions: 哪些异常需要重试
+    """
+
+    def decorator(func):
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            last_exc: Optional[BaseException] = None
+            for attempt in range(1, retries + 1):
+                try:
+                    logging.info(f"\n==== Async Retry 第 {attempt} 次 ====")
+                    result = await func(*args, **kwargs)
+                    if not retry_condition(result):
+                        return result
+                    logging.warning("条件未满足，准备重试…")
+                except exceptions as exc:
+                    last_exc = exc
+                    logging.warning(f"第 {attempt} 次调用异常：{exc!r}")
+                if attempt < retries:
+                    logging.info(f"等待 {delay}s 后重试…")
+                    await asyncio.sleep(delay)
+            logging.error("重试次数用尽（Async），操作失败。")
+            if last_exc:
+                raise last_exc
+            return None
+
+        return wrapper
+
+    return decorator
+
+
+# ===== 同步版 print_after_return =====
+def print_after_return(
+        print_func: Callable[[Any], None],
+        print_condition: Callable[[Any], bool] = lambda x: True
+):
+    """
+    同步函数返回后打印装饰器。
+
+    - print_func: 成功后调用的打印函数
+    - print_condition: 返回 True 时才调用 print_func
+    """
+
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            result = func(*args, **kwargs)
+            try:
+                if print_condition(result):
+                    print_func(result)
+            except Exception as e:
+                logging.error(f"打印失败（Sync）：{e!r}")
+            return result
+
+        return wrapper
+
+    return decorator
+
+
+# ===== 异步版 print_after_return =====
+def print_after_return_async(
+        print_func: Callable[[Any], None],
+        print_condition: Callable[[Any], bool] = lambda x: True
+):
+    """
+    异步函数返回后打印装饰器。
+
+    - print_func: 成功后调用的打印函数
+    - print_condition: 返回 True 时才调用 print_func
+    """
+
+    def decorator(func):
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            result = await func(*args, **kwargs)
+            try:
+                if print_condition(result):
+                    print_func(result)
+            except Exception as e:
+                logging.error(f"打印失败（Async）：{e!r}")
+            return result
 
         return wrapper
 
@@ -232,3 +332,47 @@ def print_performance_metrics(func):
            f"  平均耗时: {stats['avg_time'] * 1000:.2f}ms",
            f"  最快: {stats['min_time'] * 1000:.2f}ms | 最慢: {stats['max_time'] * 1000:.2f}ms"]
     print("\n".join(res))
+
+
+# ===== 使用示例 =====
+
+@retry(retries=4, delay=1, retry_condition=lambda x: x is None, exceptions=(ValueError,))
+def sync_job():
+    import random
+    if random.random() < 0.7:
+        raise ValueError("同步失败")
+    return "Sync OK"
+
+
+@retry_async(retries=4, delay=1, retry_condition=lambda x: x != "Async OK", exceptions=(RuntimeError,))
+async def async_job():
+    import random
+    if random.random() < 0.7:
+        raise RuntimeError("异步失败")
+    return "Async OK"
+
+
+@print_after_return(print_func=print, print_condition=lambda r: r is not None)
+def sync_task(x):
+    return x * 2
+
+
+@print_after_return_async(print_func=lambda r: print(f"Async got: {r}"))
+async def async_task(x):
+    await asyncio.sleep(0.1)
+    return x * 3
+
+
+if __name__ == "__main__":
+    # 同步测试
+    print("sync_job():", sync_job())
+    print("sync_task(5):", sync_task(5))
+
+
+    # 异步测试
+    async def main():
+        print("async_job():", await async_job())
+        print("async_task(7):", await async_task(7))
+
+
+    asyncio.run(main())
