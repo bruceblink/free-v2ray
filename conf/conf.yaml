@@ -1,6 +1,5 @@
 aggSubs: https://raw.githubusercontent.com/cmliu/cmliu/main/SubsCheck-URLs
 subscriptions:
-- https://ghproxy.net/https://raw.githubusercontent.com/xiaoer8867785/jddy5/main/data/{Y_m_d}/{x}.yaml
 - https://ghproxy.net/https://raw.githubusercontent.com/firefoxmmx2/v2rayshare_subcription/main/subscription/clash_sub.yaml
 - https://ghproxy.net/https://raw.githubusercontent.com/Roywaller/clash_subscription/refs/heads/main/clash_subscription.txt
 - https://ghproxy.net/https://raw.githubusercontent.com/Q3dlaXpoaQ/V2rayN_Clash_Node_Getter/refs/heads/main/APIs/sc0.yaml
@@ -19,7 +18,6 @@ subscriptions:
 - https://ghproxy.net/https://raw.githubusercontent.com/ermaozi/get_subscribe/main/subscribe/clash.yml
 - https://ghproxy.net/https://raw.githubusercontent.com/zhangkaiitugithub/passcro/main/speednodes.yaml
 - https://ghproxy.net/https://raw.githubusercontent.com/mgit0001/test_clash/refs/heads/main/heima.txt
-- https://ghproxy.net/https://raw.githubusercontent.com/mai19950/clashgithub_com/refs/heads/main/site
 - https://ghproxy.net/https://raw.githubusercontent.com/aiboboxx/clashfree/refs/heads/main/clash.yml
 - https://ghproxy.net/https://raw.githubusercontent.com/aiboboxx/v2rayfree/refs/heads/main/README.md
 - https://ghproxy.net/https://raw.githubusercontent.com/Pawdroid/Free-servers/refs/heads/main/sub
@@ -35,11 +33,6 @@ subscriptions:
 - https://ghproxy.net/https://raw.githubusercontent.com/ripaojiedian/freenode/main/clash
 - https://ghproxy.net/https://raw.githubusercontent.com/go4sharing/sub/main/sub.yaml
 - https://ghproxy.net/https://raw.githubusercontent.com/mfuu/v2ray/master/clash.yaml
-- https://www.freeclashnode.com/uploads/{Y}/{m}/0-{Ymd}.yaml
-- https://www.freeclashnode.com/uploads/{Y}/{m}/1-{Ymd}.yaml
-- https://www.freeclashnode.com/uploads/{Y}/{m}/2-{Ymd}.yaml
-- https://www.freeclashnode.com/uploads/{Y}/{m}/3-{Ymd}.yaml
-- https://www.freeclashnode.com/uploads/{Y}/{m}/4-{Ymd}.yaml
 - https://sub.reajason.eu.org/clash.yaml
 - https://proxypool.link/trojan/sub
 - https://proxypool.link/ss/sub
