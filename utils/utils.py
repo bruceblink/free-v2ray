@@ -2,6 +2,9 @@ import base64
 import logging
 import re
 from datetime import datetime
+import requests
+from requests.adapters import HTTPAdapter
+from urllib3 import Retry
 from config.settings import Settings
 from parser import node_to_v2ray_uri
 
@@ -58,3 +61,23 @@ def extract_file_pattern(url):
     if match:
         return match.group(1)  # 返回文件后缀，如 '.yaml', '.txt', '.json'
     return None
+
+
+def make_session_with_retries(
+        total_retries: int = 5,
+        backoff_factor: float = 1.0,
+        status_forcelist: tuple = (500, 502, 503, 504),
+):
+    """构造带 Retry 策略的 requests Session。"""
+    session = requests.Session()
+    retries = Retry(
+        total=total_retries,
+        backoff_factor=backoff_factor,
+        status_forcelist=status_forcelist,
+        allowed_methods=["GET"],
+        raise_on_status=False,
+    )
+    adapter = HTTPAdapter(max_retries=retries)
+    session.mount("https://", adapter)
+    session.mount("http://", adapter)
+    return session
