@@ -74,7 +74,7 @@ def extract_nodes(content: str) -> List[Dict[str, Any]]:
             return nodes
     except Exception:
         # 尝试提取 JSON 片段
-        for snippet in re.findall(r'(\{[\s\S]*?\}|\[[\s\S]*?\])', cleaned):
+        for snippet in re.findall(r'(\{[\s\S]*?}|\[[\s\S]*?])', cleaned):
             try:
                 data = json.loads(snippet)
                 nodes = parse_json_nodes(data)
