@@ -1,4 +1,4 @@
-name: free-v2ray-node
+name: update-v2ray-node
 
 on:
   schedule:
