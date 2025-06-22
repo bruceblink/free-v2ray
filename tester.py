@@ -205,20 +205,17 @@ class Tester:
 
     def _measure_latency(self, node: Dict[str, Any]) -> int:
         temp_dir = Path(tempfile.mkdtemp(prefix="node_test_"))
-        proc = None
+        config_path = temp_dir / "config.json"
+        port = find_available_port()
+        config = generate_v2ray_config(node, port)
+        if not config:
+            return -1
+        config_path.write_text(json.dumps(config))
+        proc = self.xray_process.bootstrap_xray(str(config_path))
         try:
-            config_path = temp_dir / "config.json"
-            port = find_available_port()
-            config = generate_v2ray_config(node, port)
-            if not config:
-                return -1
-            config_path.write_text(json.dumps(config))
-
-            proc = self.xray_process.bootstrap_xray(str(config_path))
             if proc.poll() is not None:
                 logging.error(f"无法启动核心进程，检查配置：{config_path}")
                 return -1
-
             proxies = {
                 'http': f'socks5://127.0.0.1:{port}',
                 'https': f'socks5://127.0.0.1:{port}'
