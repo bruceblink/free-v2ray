@@ -1659,7 +1659,7 @@ def gather_all_nodes(sub_links: list[str], max_workers: int | None = None) -> li
     all_nodes: list[dict] = []
 
     # 不指定 max_workers 时，ThreadPoolExecutor 会使用 min(32, os.cpu_count() + 4)
-    with ThreadPoolExecutor(max_workers=40) as executor:
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
         future_to_link = {executor.submit(_fetch_and_extract, link): link for link in sub_links}
         for future in as_completed(future_to_link):
             # 即使 _fetch_and_extract 已经捕获了异常，这里也做一层保险
