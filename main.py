@@ -1,3 +1,4 @@
+import asyncio
 import logging
 
 from common.logger import Logger
@@ -29,14 +30,14 @@ def main():
     config = Settings().config
     xray_booster = XrayOrV2RayBooster()
     xray_download_url = xray_booster.get_xray_download_url()
-    if not (xray_path := xray_booster.download_xray_core(xray_download_url)):
+    if not xray_booster.download_xray_core(xray_download_url):
         logging.error("未找到V2Ray或Xray核心程序，请手动下载并放置在当前目录或系统路径中")
         raise EnvironmentError("未找到xray测试核心程序")
     # 1. 初始化订阅者
     subscriber = Subscriber(config)
 
     # 2. 获取并解析所有节点
-    all_nodes = subscriber.get_subscription_nodes()
+    all_nodes = asyncio.run(subscriber.get_subscription_nodes())
     logging.info(f"提取到节点总数：{len(all_nodes)}")
 
     # 3. 去重
