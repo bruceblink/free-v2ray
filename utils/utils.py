@@ -1,5 +1,6 @@
 import base64
 import logging
+import re
 from datetime import datetime
 from config.settings import Settings
 from parser import node_to_v2ray_uri
@@ -44,3 +45,16 @@ def deduplicate_v2ray_nodes(nodes):
             seen.add(key)
             unique.append(node)
     return unique
+
+
+def is_github_raw_url(url):
+    """判断是否为GitHub的raw URL"""
+    return 'raw.githubusercontent.com' in url
+
+
+def extract_file_pattern(url):
+    """从URL中提取文件模式，例如{x}.yaml中的.yaml"""
+    match = re.search(r'\{x}(\.[a-zA-Z0-9]+)(?:/|$)', url)
+    if match:
+        return match.group(1)  # 返回文件后缀，如 '.yaml', '.txt', '.json'
+    return None
