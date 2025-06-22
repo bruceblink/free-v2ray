@@ -1,6 +1,7 @@
 import asyncio
 import logging
 
+from common.decorators import timer
 from common.logger import Logger
 from config.settings import Settings
 from subscription import Subscriber, AsyncSubscriber
@@ -23,6 +24,7 @@ def init():
     logging.info("应用初始化完成")
 
 
+@timer(unit="ms")
 def main():
     # 应用初始化
     init()
