@@ -19,6 +19,7 @@ from urllib.parse import urlparse, parse_qs, unquote
 import requests
 import yaml
 
+from common import constants
 from common.decorators import timer
 from common.logger import Logger
 from config.settings import Settings
@@ -1423,14 +1424,6 @@ def _test_node_latency(node):
             'https': f'socks5://127.0.0.1:{local_port}'
         }
 
-        # 设置与V2RayN相同的请求头
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) '
-                          'Chrome/110.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-            'Accept-Language': 'zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2'
-        }
-
         # 在Windows上，使用CREATE_NO_WINDOW标志隐藏控制台窗口
         startupinfo = None
         if platform.system() == "Windows":
@@ -1461,7 +1454,7 @@ def _test_node_latency(node):
                 response = requests.get(
                     test_url,
                     proxies=proxies,
-                    headers=headers,
+                    headers=constants.HEADERS,
                     timeout=CONNECTION_TIMEOUT
                 )
 
@@ -1537,83 +1530,7 @@ def process_node(node):
     return node
 
 
-def deduplicate_nodes(nodes):
-    """根据节点唯一属性去重，例如用 server:port。"""
-    seen = set()
-    unique = []
-    for node in nodes:
-        key = f"{node['server']}:{node['port']}"
-        if key and key not in seen:
-            seen.add(key)
-            unique.append(node)
-    return unique
 
-
-def node_to_v2ray_uri(node):
-    """将节点信息转换为V2Ray URI格式"""
-    if node['type'] == 'vmess':
-        config = {
-            'v': '2',
-            'ps': node['name'],
-            'add': node['server'],
-            'port': str(node['port']),
-            'id': node['uuid'],
-            'aid': str(node['alterId']),
-            'net': node.get('network', 'tcp'),
-            'type': node.get('type', 'none'),
-            'tls': 'tls' if node.get('tls', False) else ''
-        }
-        return f"vmess://{base64.b64encode(json.dumps(config).encode()).decode()}"
-    elif node['type'] == 'trojan':
-        return f"trojan://{node['password']}@{node['server']}:{node['port']}?sni={node['name']}"
-    elif node['type'] == 'vless':
-        # 构建vless uri
-        query_parts = []
-        if node.get('tls'):
-            query_parts.append('security=tls')
-        if node.get('flow'):
-            query_parts.append(f"flow={node['flow']}")
-        if node.get('network'):
-            query_parts.append(f"type={node['network']}")
-        query_string = '&'.join(query_parts)
-        return f"vless://{node['uuid']}@{node['server']}:{node['port']}?{query_string}&remarks={node['name']}"
-    elif node['type'] == 'ss':
-        # 构建ss uri
-        userinfo = f"{node['cipher']}:{node['password']}"
-        b64_userinfo = base64.b64encode(userinfo.encode()).decode()
-        return f"ss://{b64_userinfo}@{node['server']}:{node['port']}#{node['name']}"
-    elif node['type'] == 'ssr':
-        # 构建ssr uri
-        password_b64 = base64.b64encode(node['password'].encode()).decode()
-        name_b64 = base64.b64encode(node['name'].encode()).decode()
-        ssr_str = f"{node['server']}:{node['port']}:{node['protocol']}:{node['cipher']}:{node['obfs']}:{password_b64}/?remarks={name_b64}"
-        return f"ssr://{base64.b64encode(ssr_str.encode()).decode()}"
-    elif node['type'] in ['http', 'https']:
-        # 构建http/https uri
-        proto = 'http' if node['type'] == 'http' else 'https'
-        auth = f"{node['username']}:{node['password']}@" if node['username'] else ""
-        return f"{proto}://{auth}{node['server']}:{node['port']}?remarks={node['name']}"
-    elif node['type'] == 'socks':
-        # 构建socks uri
-        auth = f"{node['username']}:{node['password']}@" if node['username'] else ""
-        return f"socks://{auth}{node['server']}:{node['port']}?remarks={node['name']}"
-    elif node['type'] == 'hysteria':
-        # 构建hysteria uri
-        auth = f"{node['auth']}@" if node.get('auth') else ""
-        protocol_part = f"?protocol={node['protocol']}" if node.get('protocol') else ""
-        return f"hysteria://{auth}{node['server']}:{node['port']}{protocol_part}&peer={node['name']}"
-    elif node['type'] == 'wireguard':
-        # 构建wireguard uri
-        query_parts = []
-        if node.get('private_key'):
-            query_parts.append(f"privateKey={node['private_key']}")
-        if node.get('public_key'):
-            query_parts.append(f"publicKey={node['public_key']}")
-        if node.get('allowed_ips'):
-            query_parts.append(f"allowedIPs={node['allowed_ips']}")
-        query_string = '&'.join(query_parts)
-        return f"wireguard://{node['server']}:{node['port']}?{query_string}&remarks={node['name']}"
-    return None
 
 
 def load_subscriptions(config: dict) -> list[str]:
@@ -1713,23 +1630,6 @@ def _test_all_nodes_latency(
     return valid
 
 
-def save_results(nodes: list[dict]) -> None:
-    """将节点列表转为 V2Ray URI，保存为 base64 和原始文本。"""
-    if not nodes:
-        logging.info("未找到有效节点，不生成文件")
-        return
-
-    uris = [node_to_v2ray_uri(n) for n in nodes if node_to_v2ray_uri(n)]
-    raw = "\n".join(uris)
-    b64 = base64.b64encode(raw.encode()).decode()
-    v2ray_txt = Settings.V2RAY_DIR / "v2ray.txt"
-    v2ray_txt.write_text(b64, encoding="utf-8")
-    logging.info(f"已保存 {len(uris)} 条节点（base64）到 {v2ray_txt}")
-
-    v2ray_txt.write_text(raw, encoding="utf-8")
-    logging.info(f"已保存原始文本到 {v2ray_txt}")
-
-
 def init():
     """初始化设置和日志记录"""
     Settings.setup()
@@ -1761,7 +1661,7 @@ def main():
     logging.info(f"提取到节点总数：{len(all_nodes)}")
 
     # 3. 去重
-    unique_nodes = deduplicate_nodes(all_nodes)
+    unique_nodes = utils.deduplicate_v2ray_nodes(all_nodes)
     logging.info(f"去重后节点数量：{len(unique_nodes)}")
 
     # 4. 测试延迟
@@ -1769,7 +1669,7 @@ def main():
     logging.info(f"有效节点数量：{len(valid_nodes)}")
 
     # 5. 保存结果
-    save_results(valid_nodes)
+    utils.save_results(valid_nodes, "v2ray.txt")
 
 
 if __name__ == "__main__":
