@@ -1,15 +1,13 @@
 import json
 import logging
 import os
-import platform
 import random
 import shutil
 import socket
 import subprocess
 import tempfile
 import time
-from asyncio import as_completed
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import as_completed, ThreadPoolExecutor
 import requests
 from common import constants
 from common.constants import TEST_URLS, CONNECTION_TIMEOUT
@@ -35,7 +33,7 @@ class Tester:
         logging.info(f"开始测试节点延迟，总共 {total} 个节点，使用线程池最大并发数：{max_workers}")
         with ThreadPoolExecutor(max_workers=max_workers) as pool:
             # 提交所有任务
-            future_to_node = {pool.submit(self.process_node, node): node for node in nodes}
+            future_to_node = {pool.submit(process_node, node, self.xray_process): node for node in nodes}
 
             for future in as_completed(future_to_node):
                 node = future_to_node[future]
@@ -60,96 +58,93 @@ class Tester:
         logging.info(f"\n测试完成：共处理 {total} 个节点，其中 {len(valid)} 个有效，{total - len(valid)} 个无效/失败")
         return valid
 
-    def process_node(self, node):
-        """处理单个节点，添加延迟信息"""
-        if not node or 'name' not in node or 'server' not in node:
-            return None
 
-        # logging.info(f"测试节点: {node['name']} [{node['type']}] - {node['server']}:{node['port']}")
-        latency = self._test_node_latency(node)
+def process_node(node: dict, xray_process: XrayOrV2RayBooster | None) -> dict | None:
+    """处理单个节点，添加延迟信息"""
+    if not node or 'name' not in node or 'server' not in node:
+        return None
 
-        # 过滤掉延迟为0ms或连接失败的节点或者连接超过1000ms
-        if latency < 0 or latency > 1000:
-            # status = "连接失败" if latency == -1 else "延迟为0ms"
-            # logging.info(f"节点: {node['name']} ，{status}，跳过")
-            return None
+    latency = _test_node_latency(node, xray_process)
 
-        # 更新节点名称，添加延迟信息
-        node['name'] = f"{node['name']} [{latency}ms]"
-        logging.info(f"有效节点: {node['name']} ，延迟: {latency}ms")
-        return node
+    # 过滤掉延迟为0ms或连接失败的节点或者连接超过1000ms
+    if latency < 0 or latency > 1000:
+        return None
+    # 更新节点名称，添加延迟信息
+    node['name'] = f"{node['name']} [{latency}ms]"
+    return node
 
-    def _test_node_latency(self, node):
-        """使用xray核心程序测试节点延迟"""
 
-        # 为测试创建临时目录
-        temp_dir = tempfile.mkdtemp(prefix="node_test_")
-        config_file = os.path.join(temp_dir, "config.json")
+def _test_node_latency(node: dict, xray_process: XrayOrV2RayBooster | None):
+    """使用xray核心程序测试节点延迟"""
 
-        # 获取一个可用端口
-        local_port = find_available_port()
+    # 为测试创建临时目录
+    temp_dir = tempfile.mkdtemp(prefix="node_test_")
+    config_file = os.path.join(temp_dir, "config.json")
 
-        # 生成配置文件
-        config = generate_v2ray_config(node, local_port)
-        if not config:
-            shutil.rmtree(temp_dir)
-            return -1
+    # 获取一个可用端口
+    local_port = find_available_port()
 
-        with open(config_file, 'w') as f:
-            json.dump(config, f)
+    # 生成配置文件
+    config = generate_v2ray_config(node, local_port)
+    if not config:
+        shutil.rmtree(temp_dir)
+        return -1
 
-        # 启动核心进程
-        core_process = self.xray_process.bootstrap_xray(config_file)
-        if core_process.poll() is not None:
-            logging.error(f"无法启动核心进程，检查配置文件: {config_file}")
-            shutil.rmtree(temp_dir)
-            return -1
-        try:
-            # 设置代理环境变量，使用SOCKS代理
-            proxies = {
-                'http': f'socks5://127.0.0.1:{local_port}',
-                'https': f'socks5://127.0.0.1:{local_port}'
-            }
-            # 测试连接延迟 - 不再使用重试机制
-            start_time = time.perf_counter()
+    with open(config_file, 'w') as f:
+        json.dump(config, f)
 
-            # 按顺序尝试不同的测试URL
-            for test_url in TEST_URLS:
-                try:
-                    logging.debug(f"测试节点: {node['name']} - 尝试URL: {test_url}")
-                    response = requests.get(
-                        test_url,
-                        proxies=proxies,
-                        headers=constants.HEADERS,
-                        timeout=CONNECTION_TIMEOUT
-                    )
+    # 启动核心进程
+    core_process = xray_process.bootstrap_xray(config_file)
+    if core_process.poll() is not None:
+        logging.error(f"无法启动核心进程，检查配置文件: {config_file}")
+        shutil.rmtree(temp_dir)
+        return -1
+    try:
+        # 设置代理环境变量，使用SOCKS代理
+        proxies = {
+            'http': f'socks5://127.0.0.1:{local_port}',
+            'https': f'socks5://127.0.0.1:{local_port}'
+        }
+        # 测试连接延迟 - 不再使用重试机制
+        start_time = time.perf_counter()
 
-                    if response.status_code in [200, 204]:
-                        latency = int((time.perf_counter() - start_time) * 1000)
-                        logging.debug(f"测试成功: {node['name']} - URL: {test_url} - 延迟: {latency}ms")
+        # 按顺序尝试不同的测试URL
+        for test_url in TEST_URLS:
+            try:
+                logging.debug(f"测试节点: {node['name']} - 尝试URL: {test_url}")
+                response = requests.get(
+                    test_url,
+                    proxies=proxies,
+                    headers=constants.HEADERS,
+                    timeout=CONNECTION_TIMEOUT
+                )
 
-                        return latency
-                    else:
-                        logging.debug(f"测试URL状态码错误: {response.status_code}")
+                if response.status_code in [200, 204]:
+                    latency = int((time.perf_counter() - start_time) * 1000)
+                    logging.debug(f"测试成功: {node['name']} - URL: {test_url} - 延迟: {latency}ms")
 
-                except Exception as e:
-                    logging.debug(f"测试失败: {test_url} - 错误: {str(e)}")
-                    continue  # 尝试下一个URL
-            return -1
+                    return latency
+                else:
+                    logging.debug(f"测试URL状态码错误: {response.status_code}")
 
-        except Exception as e:
-            logging.error(f"测试节点 {node['name']} 时发生错误: {str(e)}")
-        finally:
-            # 清理资源
-            if core_process:
-                core_process.terminate()
-                try:
-                    core_process.wait(timeout=5)
-                except subprocess.TimeoutExpired:
-                    core_process.kill()
-                finally:
-                    # 删除临时目录
-                    shutil.rmtree(temp_dir)
+            except Exception as e:
+                logging.debug(f"测试失败: {test_url} - 错误: {str(e)}")
+                continue  # 尝试下一个URL
+        return -1
+
+    except Exception as e:
+        logging.error(f"测试节点 {node['name']} 时发生错误: {str(e)}")
+    finally:
+        # 清理资源
+        if core_process:
+            core_process.terminate()
+            try:
+                core_process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                core_process.kill()
+            finally:
+                # 删除临时目录
+                shutil.rmtree(temp_dir)
 
 
 def find_available_port(start_port=10000, end_port=60000) -> int:
