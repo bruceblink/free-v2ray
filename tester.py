@@ -1,3 +1,5 @@
+import random
+import asyncio
 import json
 import logging
 import random
@@ -8,9 +10,8 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any, Dict, List, Optional
-
+import aiohttp
 import requests
-
 from common import constants
 from common.constants import TEST_URLS, CONNECTION_TIMEOUT
 from config.settings import Settings
@@ -82,7 +83,8 @@ def _common_stream_settings(node: Dict[str, Any], outbound: Dict[str, Any]) -> N
             "header": {"type": node.get('headerType', 'none')}
         }
     elif net == 'tcp' and node.get('headerType') == 'http':
-        ss['tcpSettings'] = {"header": {"type": "http", "request": {"path": [node.get('path', '/')], "headers": {"Host": [node.get('host', '')]}}}}
+        ss['tcpSettings'] = {"header": {"type": "http", "request": {"path": [node.get('path', '/')],
+                                                                    "headers": {"Host": [node.get('host', '')]}}}}
 
 
 def _build_vmess(node: Dict[str, Any]) -> Dict[str, Any]:
@@ -241,3 +243,110 @@ class Tester:
             except Exception:
                 proc.kill()
             shutil.rmtree(temp_dir)
+
+
+class AsyncTester:
+    def __init__(self, xray_process: Optional[XrayOrV2RayBooster] = None) -> None:
+        self.xray_process = xray_process
+
+    async def test_all_nodes_latency(
+            self,
+            nodes: List[Dict[str, Any]],
+            max_workers: Optional[int] = None
+    ) -> List[Dict[str, Any]]:
+        max_workers = max_workers or Settings.THREAD_POOL_SIZE
+        total = len(nodes)
+        valid_nodes: List[Dict[str, Any]] = []
+        sem = asyncio.Semaphore(max_workers)
+
+        logging.info(
+            f"开始测试节点延迟，总共 {total} 个节点，使用异步并发数：{max_workers}"
+        )
+
+        async def sem_task(idx: int, node: Dict[str, Any]) -> None:
+            async with sem:
+                nid = f"{node.get('server')}:{node.get('port', 'N/A')}"
+                try:
+                    result = await self._process_node(node)
+                    if result:
+                        logging.info(f"[{idx}/{total}] ✓ 节点 {nid} 测试通过，延迟：{result['latency']} ms")
+                        valid_nodes.append(result)
+                    else:
+                        logging.info(f"[{idx}/{total}] ✗ 节点 {nid} 无效，已跳过")
+                except Exception as exc:
+                    logging.warning(f"[{idx}/{total}] ⚠ 节点 {nid} 测试异常：{exc!r}")
+
+        tasks = [asyncio.create_task(sem_task(i + 1, node)) for i, node in enumerate(nodes)]
+        await asyncio.gather(*tasks)
+
+        logging.info(
+            f"测试完成：共处理 {total} 个节点，其中 {len(valid_nodes)} 个有效，"
+            f"{total - len(valid_nodes)} 个无效/失败"
+        )
+        return valid_nodes
+
+    async def _process_node(self, node: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        if not node.get('name') or not node.get('server'):
+            return None
+        latency = await self._measure_latency(node)
+        if 0 <= latency <= 1000:
+            node['latency'] = latency
+            node['name'] = f"{node['name']} [{latency}ms]"
+            return node
+        return None
+
+    async def _measure_latency(self, node: Dict[str, Any]) -> int:
+        temp_dir = Path(tempfile.mkdtemp(prefix="node_test_"))
+        proc = None
+        try:
+            config_path = temp_dir / "config.json"
+            port = find_available_port()
+            config = generate_v2ray_config(node, port)
+            if not config:
+                return -1
+            config_path.write_text(json.dumps(config))
+
+            # 启动 xray/v2ray 核心进程
+            loop = asyncio.get_running_loop()
+            proc = await loop.run_in_executor(
+                None,
+                lambda: self.xray_process.bootstrap_xray(str(config_path))
+            )
+            if proc.poll() is not None:
+                logging.error(f"无法启动核心进程，检查配置：{config_path}")
+                return -1
+
+            proxies = {
+                'http': f'socks5://127.0.0.1:{port}',
+                'https': f'socks5://127.0.0.1:{port}'
+            }
+
+            start = time.perf_counter()
+            async with aiohttp.ClientSession(headers={"User-Agent": "Mozilla/5.0"}) as session:
+                for url in TEST_URLS:
+                    try:
+                        async with session.get(
+                                url,
+                                proxy=proxies['http'],
+                                timeout=CONNECTION_TIMEOUT
+                        ) as resp:
+                            if resp.status in (200, 204):
+                                return int((time.perf_counter() - start) * 1000)
+                    except Exception:
+                        continue
+            return -1
+        finally:
+            if proc:
+                proc.terminate()
+                try:
+                    proc.wait(timeout=5)
+                except Exception:
+                    proc.kill()
+            shutil.rmtree(temp_dir)
+
+# 用法示例
+# async def main():
+#     tester = AsyncTester(xray_process)
+#     results = await tester.test_all_nodes_latency(nodes_list)
+#
+# asyncio.run(main())
