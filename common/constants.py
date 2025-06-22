@@ -3,7 +3,7 @@ HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 "
                   "Safari/537.36 Edg/125.0.0.0",
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
-    "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+    "Accept-Language": "zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2",
     "Accept-Encoding": "gzip, deflate, br",
     "Connection": "keep-alive",
     "Referer": "https://www.google.com/",
@@ -18,3 +18,31 @@ HEADERS = {
     "Sec-Fetch-Site": "same-origin",
     "Sec-Fetch-User": "?1",
 }
+
+# 支持的协议类型列表
+SUPPORTED_PROTOCOLS = [
+    'vmess://',
+    'trojan://',
+    'vless://',
+    'ss://',
+    'ssr://',
+    'http://',
+    'https://',
+    'socks://',
+    'socks5://',
+    'hysteria://',
+    'wireguard://'
+]
+
+# 测速相关配置
+# 测试URL列表
+TEST_URLS = [
+    "http://www.gstatic.com/generate_204",  # Google测试
+]
+CONNECTION_TIMEOUT = 10  # 连接超时时间，单位为秒
+DEBUG_MODE = False  # 默认开启调试模式，方便查看处理过程
+
+# Xray核心程序的最新版本API URL
+XRAY_API_URL = "https://api.github.com/repos/XTLS/Xray-core/releases/latest"
+# GitHub PROXY
+GITHUB_PROXY = "https://ghproxy.com"
