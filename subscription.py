@@ -4,6 +4,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import requests
 
 from config.settings import Settings
+from proxy_node import ProxyNodeExtractor
 
 
 class Subscriber:
@@ -63,7 +64,4 @@ def _fetch_and_extract(link: str) -> list[dict]:
         return []
 
 
-class ProxyNodeExtractor:
-    @staticmethod
-    def extract_proxy_nodes(resp_text: str) -> list[dict]:
-        pass
+

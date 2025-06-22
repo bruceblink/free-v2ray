@@ -18,3 +18,29 @@ HEADERS = {
     "Sec-Fetch-Site": "same-origin",
     "Sec-Fetch-User": "?1",
 }
+
+# 支持的协议类型列表
+SUPPORTED_PROTOCOLS = [
+    'vmess://',
+    'trojan://',
+    'vless://',
+    'ss://',
+    'ssr://',
+    'http://',
+    'https://',
+    'socks://',
+    'socks5://',
+    'hysteria://',
+    'wireguard://'
+]
+
+# 测速相关配置
+# 测试URL列表
+TEST_URLS = [
+    "http://www.gstatic.com/generate_204",  # Google测试
+]
+CONNECTION_TIMEOUT = 10  # 连接超时时间，单位为秒
+DEBUG_MODE = False  # 默认开启调试模式，方便查看处理过程
+
+# 核心程序配置
+CORE_PATH = None  # 核心程序路径，将自动检测
