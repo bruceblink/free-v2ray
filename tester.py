@@ -203,6 +203,7 @@ class Tester:
 
     def _measure_latency(self, node: Dict[str, Any]) -> int:
         temp_dir = Path(tempfile.mkdtemp(prefix="node_test_"))
+        proc = None
         try:
             config_path = temp_dir / "config.json"
             port = find_available_port()
