@@ -5,7 +5,7 @@ from config.settings import Settings
 from subscription import Subscriber
 from tester import Tester
 from utils import utils
-from xray import download_xray_core, get_xray_download_url
+from xray import XrayOrV2RayBooster
 
 
 def init():
@@ -27,8 +27,9 @@ def main():
     init()
     """主函数，执行所有步骤"""
     config = Settings().config
-    xray_download_url = get_xray_download_url()
-    if not (xray_path := download_xray_core(xray_download_url)):
+    xray_booster = XrayOrV2RayBooster()
+    xray_download_url = xray_booster.get_xray_download_url()
+    if not (xray_path := xray_booster.download_xray_core(xray_download_url)):
         logging.error("未找到V2Ray或Xray核心程序，请手动下载并放置在当前目录或系统路径中")
         raise EnvironmentError("未找到xray测试核心程序")
     # 1. 初始化订阅者
@@ -43,7 +44,7 @@ def main():
     logging.info(f"去重后节点数量：{len(unique_nodes)}")
     # 4. 测试延迟
     # 构造测试器
-    tester = Tester(xray_path)
+    tester = Tester(xray_booster)
     valid_nodes = tester.test_all_nodes_latency(unique_nodes, 100)
     logging.info(f"有效节点数量：{len(valid_nodes)}")
 
