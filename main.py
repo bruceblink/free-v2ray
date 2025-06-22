@@ -1517,7 +1517,6 @@ def _test_latency(node):
     return latency
 
 
-@timer(unit="ms")
 def process_node(node):
     """处理单个节点，添加延迟信息"""
     if not node or 'name' not in node or 'server' not in node:
@@ -1631,7 +1630,6 @@ def load_subscriptions(config: dict) -> list[str]:
     return list(dict.fromkeys(subs))
 
 
-@timer(unit="ms")
 def _fetch_and_extract(link: str) -> list[dict]:
     """
     线程中运行：拉取订阅、提取节点列表。
