@@ -42,5 +42,7 @@ TEST_URLS = [
 CONNECTION_TIMEOUT = 10  # 连接超时时间，单位为秒
 DEBUG_MODE = False  # 默认开启调试模式，方便查看处理过程
 
-# 核心程序配置
-CORE_PATH = None  # 核心程序路径，将自动检测
+# Xray核心程序的最新版本API URL
+XRAY_API_URL = "https://api.github.com/repos/XTLS/Xray-core/releases/latest"
+# GitHub PROXY
+GITHUB_PROXY = "https://ghproxy.com"
