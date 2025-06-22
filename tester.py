@@ -1,408 +1,242 @@
 import json
 import logging
-import os
 import random
 import shutil
 import socket
-import subprocess
 import tempfile
 import time
-from concurrent.futures import as_completed, ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
 import requests
+
 from common import constants
 from common.constants import TEST_URLS, CONNECTION_TIMEOUT
 from config.settings import Settings
 from xray import XrayOrV2RayBooster
 
 
+def find_available_port(start: int = 10000, end: int = 60000) -> int:
+    while True:
+        port = random.randint(start, end)
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            try:
+                sock.bind(('127.0.0.1', port))
+                return port
+            except OSError:
+                continue
+
+
+def generate_v2ray_config(node: Dict[str, Any], local_port: int) -> Optional[Dict[str, Any]]:
+    base = {
+        "inbounds": [{
+            "port": local_port,
+            "listen": "127.0.0.1",
+            "protocol": "socks",
+            "settings": {"auth": "noauth", "udp": True},
+            "sniffing": {"enabled": True, "destOverride": ["http", "tls"]}
+        }],
+        "outbounds": [],
+        "log": {"loglevel": "none"}
+    }
+
+    builders = {
+        'vmess': _build_vmess,
+        'trojan': _build_trojan,
+        'vless': _build_vless,
+        'ss': _build_shadowsocks,
+        'socks': _build_socks,
+        'http': _build_http,
+        'https': _build_http
+    }
+    builder = builders.get(node['type'])
+    if not builder:
+        logging.debug(f"警告: 不支持的协议 {node['type']}")
+        return None
+    outbound = builder(node)
+    if outbound:
+        base['outbounds'] = [outbound]
+    return base
+
+
+def _common_stream_settings(node: Dict[str, Any], outbound: Dict[str, Any]) -> None:
+    net = node.get('network')
+    ssl = node.get('tls', False)
+    ss = outbound.setdefault('streamSettings', {"network": net, "security": "tls" if ssl else "none"})
+    if ssl:
+        ss['tlsSettings'] = {
+            "serverName": node.get('sni', node.get('host', node['server'])),
+            "allowInsecure": node.get('allowInsecure', False)
+        }
+    if net == 'ws':
+        ss['wsSettings'] = {"path": node.get('path', '/'), "headers": {"Host": node.get('host', node['server'])}}
+    elif net == 'grpc':
+        ss['grpcSettings'] = {"serviceName": node.get('path', ''), "multiMode": node.get('multiMode', False)}
+    elif net == 'h2':
+        ss['httpSettings'] = {"path": node.get('path', '/'), "host": [node.get('host', node['server'])]}
+    elif net == 'quic':
+        ss['quicSettings'] = {
+            "security": node.get('quicSecurity', 'none'),
+            "key": node.get('quicKey', ''),
+            "header": {"type": node.get('headerType', 'none')}
+        }
+    elif net == 'tcp' and node.get('headerType') == 'http':
+        ss['tcpSettings'] = {"header": {"type": "http", "request": {"path": [node.get('path', '/')], "headers": {"Host": [node.get('host', '')]}}}}
+
+
+def _build_vmess(node: Dict[str, Any]) -> Dict[str, Any]:
+    outbound = {
+        "protocol": "vmess",
+        "settings": {"vnext": [{
+            "address": node['server'],
+            "port": node['port'],
+            "users": [{
+                "id": node['uuid'],
+                "alterId": node.get('alterId', 0),
+                "security": node.get('cipher', 'auto')
+            }]
+        }]}
+    }
+    _common_stream_settings(node, outbound)
+    return outbound
+
+
+def _build_trojan(node: Dict[str, Any]) -> Dict[str, Any]:
+    outbound = {
+        "protocol": "trojan",
+        "settings": {"servers": [{
+            "address": node['server'],
+            "port": node['port'],
+            "password": node['password']
+        }]}
+    }
+    _common_stream_settings(node, outbound)
+    return outbound
+
+
+def _build_vless(node: Dict[str, Any]) -> Dict[str, Any]:
+    outbound = {
+        "protocol": "vless",
+        "settings": {"vnext": [{
+            "address": node['server'],
+            "port": node['port'],
+            "users": [{"id": node['uuid'], "encryption": "none", "flow": node.get('flow', '')}]
+        }]}
+    }
+    _common_stream_settings(node, outbound)
+    return outbound
+
+
+def _build_shadowsocks(node: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "protocol": "shadowsocks",
+        "settings": {"servers": [{
+            "address": node['server'],
+            "port": node['port'],
+            "method": node['cipher'],
+            "password": node.get('password', '')
+        }]}
+    }
+
+
+def _build_socks(node: Dict[str, Any]) -> Dict[str, Any]:
+    servers = [{"address": node['server'], "port": node['port']}]
+    if node.get('username') and node.get('password'):
+        servers[0]['users'] = [{"user": node['username'], "pass": node['password']}]
+    return {"protocol": "socks", "settings": {"servers": servers}}
+
+
+def _build_http(node: Dict[str, Any]) -> Dict[str, Any]:
+    servers = [{"address": node['server'], "port": node['port']}]
+    if node.get('username') and node.get('password'):
+        servers[0]['users'] = [{"user": node['username'], "pass": node['password']}]
+    return {"protocol": "http", "settings": {"servers": servers}}
+
+
 class Tester:
-    def __init__(self, xray_process: XrayOrV2RayBooster | None):
+    def __init__(self, xray_process: Optional[XrayOrV2RayBooster] = None) -> None:
         self.xray_process = xray_process
 
-    def test_all_nodes_latency(self,
-                               nodes: list[dict],
-                               max_workers: int | None = None
-                               ) -> list[dict]:
-        """
-        并发测试各节点延迟，返回有效节点列表，并打印详细进度提示。
-        """
-        valid: list[dict] = []
+    def test_all_nodes_latency(
+            self,
+            nodes: List[Dict[str, Any]],
+            max_workers: Optional[int] = None
+    ) -> List[Dict[str, Any]]:
+        max_workers = max_workers or Settings.THREAD_POOL_SIZE
         total = len(nodes)
-        done = 0
-        max_workers = Settings.THREAD_POOL_SIZE if max_workers is None else max_workers
-        logging.info(f"开始测试节点延迟，总共 {total} 个节点，使用线程池最大并发数：{max_workers}")
-        with ThreadPoolExecutor(max_workers=max_workers) as pool:
-            # 提交所有任务
-            future_to_node = {pool.submit(process_node, node, self.xray_process): node for node in nodes}
+        valid_nodes: List[Dict[str, Any]] = []
+        logging.info(
+            f"开始测试节点延迟，总共 {total} 个节点，使用线程池最大并发数：{max_workers}"
+        )
 
-            for future in as_completed(future_to_node):
-                node = future_to_node[future]
-                done += 1
-
-                # 标识该节点的简要标识（优先 id，其次 uri，其次索引）
-                nid = f"{node.get("server")}:{node.get("port", 'N/A')}" \
-                    if node.get("server") and node.get("port") else f"index#{done}"
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = {executor.submit(self._process_node, node): node for node in nodes}
+            for idx, future in enumerate(as_completed(futures), 1):
+                node = futures[future]
+                nid = f"{node.get('server')}:{node.get('port', 'N/A')}" or f"index#{idx}"
                 try:
                     result = future.result()
                     if result:
-                        # 假设 result 中包含延迟字段 'latency'
-                        latency = result.get("latency")
-                        logging.info(f"[{done}/{total}] ✓ 节点 {nid} 测试通过" +
-                                     (f"，延迟：{latency} ms" if latency is not None else ""))
-                        valid.append(result)
+                        logging.info(f"[{idx}/{total}] ✓ 节点 {nid} 测试通过，延迟：{result['latency']} ms")
+                        valid_nodes.append(result)
                     else:
-                        logging.info(f"[{done}/{total}] ✗ 节点 {nid} 无效，已跳过")
-                except Exception as e:
-                    logging.info(f"[{done}/{total}] ⚠ 节点 {nid} 测试异常：{e!r}")
+                        logging.info(f"[{idx}/{total}] ✗ 节点 {nid} 无效，已跳过")
+                except Exception as exc:
+                    logging.warning(f"[{idx}/{total}] ⚠ 节点 {nid} 测试异常：{exc!r}")
 
-        logging.info(f"\n测试完成：共处理 {total} 个节点，其中 {len(valid)} 个有效，{total - len(valid)} 个无效/失败")
-        return valid
+        logging.info(
+            f"测试完成：共处理 {total} 个节点，其中 {len(valid_nodes)} 个有效，"
+            f"{total - len(valid_nodes)} 个无效/失败"
+        )
+        return valid_nodes
 
-
-def process_node(node: dict, xray_process: XrayOrV2RayBooster | None) -> dict | None:
-    """处理单个节点，添加延迟信息"""
-    if not node or 'name' not in node or 'server' not in node:
+    def _process_node(self, node: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        if not node.get('name') or not node.get('server'):
+            return None
+        latency = self._measure_latency(node)
+        if 0 <= latency <= 1000:
+            node['latency'] = latency
+            node['name'] = f"{node['name']} [{latency}ms]"
+            return node
         return None
 
-    latency = _test_node_latency(node, xray_process)
-
-    # 过滤掉延迟为0ms或连接失败的节点或者连接超过1000ms
-    if latency < 0 or latency > 1000:
-        return None
-    # 更新节点名称，添加延迟信息
-    node['name'] = f"{node['name']} [{latency}ms]"
-    return node
-
-
-def _test_node_latency(node: dict, xray_process: XrayOrV2RayBooster | None):
-    """使用xray核心程序测试节点延迟"""
-
-    # 为测试创建临时目录
-    temp_dir = tempfile.mkdtemp(prefix="node_test_")
-    config_file = os.path.join(temp_dir, "config.json")
-
-    # 获取一个可用端口
-    local_port = find_available_port()
-
-    # 生成配置文件
-    config = generate_v2ray_config(node, local_port)
-    if not config:
-        shutil.rmtree(temp_dir)
-        return -1
-
-    with open(config_file, 'w') as f:
-        json.dump(config, f)
-
-    # 启动核心进程
-    core_process = xray_process.bootstrap_xray(config_file)
-    if core_process.poll() is not None:
-        logging.error(f"无法启动核心进程，检查配置文件: {config_file}")
-        shutil.rmtree(temp_dir)
-        return -1
-    try:
-        # 设置代理环境变量，使用SOCKS代理
-        proxies = {
-            'http': f'socks5://127.0.0.1:{local_port}',
-            'https': f'socks5://127.0.0.1:{local_port}'
-        }
-        # 测试连接延迟 - 不再使用重试机制
-        start_time = time.perf_counter()
-
-        # 按顺序尝试不同的测试URL
-        for test_url in TEST_URLS:
-            try:
-                logging.debug(f"测试节点: {node['name']} - 尝试URL: {test_url}")
-                response = requests.get(
-                    test_url,
-                    proxies=proxies,
-                    headers=constants.HEADERS,
-                    timeout=CONNECTION_TIMEOUT
-                )
-
-                if response.status_code in [200, 204]:
-                    latency = int((time.perf_counter() - start_time) * 1000)
-                    logging.debug(f"测试成功: {node['name']} - URL: {test_url} - 延迟: {latency}ms")
-
-                    return latency
-                else:
-                    logging.debug(f"测试URL状态码错误: {response.status_code}")
-
-            except Exception as e:
-                logging.debug(f"测试失败: {test_url} - 错误: {str(e)}")
-                continue  # 尝试下一个URL
-        return -1
-
-    except Exception as e:
-        logging.error(f"测试节点 {node['name']} 时发生错误: {str(e)}")
-    finally:
-        # 清理资源
-        if core_process:
-            core_process.terminate()
-            try:
-                core_process.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                core_process.kill()
-            finally:
-                # 删除临时目录
-                shutil.rmtree(temp_dir)
-
-
-def find_available_port(start_port=10000, end_port=60000) -> int:
-    """查找可用的端口"""
-    while True:
-        port = random.randint(start_port, end_port)
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    def _measure_latency(self, node: Dict[str, Any]) -> int:
+        temp_dir = Path(tempfile.mkdtemp(prefix="node_test_"))
         try:
-            sock.bind(('127.0.0.1', port))
-            sock.close()
-            return port
-        except Exception:
-            sock.close()
-            continue
+            config_path = temp_dir / "config.json"
+            port = find_available_port()
+            config = generate_v2ray_config(node, port)
+            if not config:
+                return -1
+            config_path.write_text(json.dumps(config))
 
+            proc = self.xray_process.bootstrap_xray(str(config_path))
+            if proc.poll() is not None:
+                logging.error(f"无法启动核心进程，检查配置：{config_path}")
+                return -1
 
-def generate_v2ray_config(node, local_port) -> dict | None:
-    """根据节点信息生成V2Ray配置文件，采用与V2RayN相同的配置方式"""
-    config = {
-        "inbounds": [
-            {
-                "port": local_port,
-                "listen": "127.0.0.1",
-                "protocol": "socks",
-                "settings": {
-                    "auth": "noauth",  # 不需要认证
-                    "udp": True  # 支持UDP
-                },
-                "sniffing": {
-                    "enabled": True,
-                    "destOverride": ["http", "tls"]
-                }
+            proxies = {
+                'http': f'socks5://127.0.0.1:{port}',
+                'https': f'socks5://127.0.0.1:{port}'
             }
-        ],
-        "outbounds": [
-            # 出站连接将根据节点类型生成
-        ],
-        "log": {
-            "loglevel": "none"  # 禁止日志输出，减少干扰
-        }
-    }
-
-    # 根据节点类型配置出站连接，参考V2RayN的配置方式
-    if node['type'] == 'vmess':
-        # 基本VMess配置
-        outbound = {
-            "protocol": "vmess",
-            "settings": {
-                "vnext": [
-                    {
-                        "address": node['server'],
-                        "port": node['port'],
-                        "users": [
-                            {
-                                "id": node['uuid'],
-                                "alterId": node.get('alterId', 0),
-                                "security": node.get('cipher', 'auto')
-                            }
-                        ]
-                    }
-                ]
-            },
-            "streamSettings": {
-                "network": node.get('network', 'tcp'),
-                "security": "tls" if node.get('tls', False) else "none"
-            }
-        }
-
-        # 添加网络特定配置，参考V2RayN的配置
-        if node.get('network') == 'ws':
-            outbound["streamSettings"]["wsSettings"] = {
-                "path": node.get('path', '/'),
-                "headers": {
-                    "Host": node.get('host', node['server'])
-                }
-            }
-        elif node.get('network') == 'h2':
-            outbound["streamSettings"]["httpSettings"] = {
-                "path": node.get('path', '/'),
-                "host": [node.get('host', node['server'])]
-            }
-        elif node.get('network') == 'quic':
-            outbound["streamSettings"]["quicSettings"] = {
-                "security": node.get('quicSecurity', 'none'),
-                "key": node.get('quicKey', ''),
-                "header": {
-                    "type": node.get('headerType', 'none')
-                }
-            }
-        elif node.get('network') == 'grpc':
-            outbound["streamSettings"]["grpcSettings"] = {
-                "serviceName": node.get('path', ''),
-                "multiMode": node.get('multiMode', False)
-            }
-        elif node.get('network') == 'tcp':
-            if node.get('headerType') == 'http':
-                outbound["streamSettings"]["tcpSettings"] = {
-                    "header": {
-                        "type": "http",
-                        "request": {
-                            "path": [node.get('path', '/')],
-                            "headers": {
-                                "Host": [node.get('host', '')]
-                            }
-                        }
-                    }
-                }
-
-        # TLS相关设置
-        if node.get('tls'):
-            outbound["streamSettings"]["tlsSettings"] = {
-                "serverName": node.get('sni', node.get('host', node['server'])),
-                "allowInsecure": node.get('allowInsecure', False)
-            }
-
-        config["outbounds"] = [outbound]
-    elif node['type'] == 'trojan':
-        # 增强Trojan配置
-        config["outbounds"] = [{
-            "protocol": "trojan",
-            "settings": {
-                "servers": [
-                    {
-                        "address": node['server'],
-                        "port": node['port'],
-                        "password": node['password']
-                    }
-                ]
-            },
-            "streamSettings": {
-                "network": node.get('network', 'tcp'),
-                "security": "tls",
-                "tlsSettings": {
-                    "serverName": node.get('sni', node.get('host', node['server'])),
-                    "allowInsecure": node.get('allowInsecure', False)
-                }
-            }
-        }]
-
-        # 添加网络特定配置
-        if node.get('network') == 'ws':
-            config["outbounds"][0]["streamSettings"]["wsSettings"] = {
-                "path": node.get('path', '/'),
-                "headers": {
-                    "Host": node.get('host', node['server'])
-                }
-            }
-    elif node['type'] == 'vless':
-        # 增强VLESS配置
-        config["outbounds"] = [{
-            "protocol": "vless",
-            "settings": {
-                "vnext": [
-                    {
-                        "address": node['server'],
-                        "port": node['port'],
-                        "users": [
-                            {
-                                "id": node['uuid'],
-                                "encryption": "none",
-                                "flow": node.get('flow', '')
-                            }
-                        ]
-                    }
-                ]
-            },
-            "streamSettings": {
-                "network": node.get('network', 'tcp'),
-                "security": "tls" if node.get('tls', False) else "none"
-            }
-        }]
-
-        # 添加网络特定配置
-        if node.get('network') == 'ws':
-            config["outbounds"][0]["streamSettings"]["wsSettings"] = {
-                "path": node.get('path', '/'),
-                "headers": {
-                    "Host": node.get('host', node['server'])
-                }
-            }
-        elif node.get('network') == 'grpc':
-            config["outbounds"][0]["streamSettings"]["grpcSettings"] = {
-                "serviceName": node.get('path', ''),
-                "multiMode": node.get('multiMode', False)
-            }
-
-        # TLS相关设置
-        if node.get('tls'):
-            config["outbounds"][0]["streamSettings"]["tlsSettings"] = {
-                "serverName": node.get('sni', node.get('host', node['server'])),
-                "allowInsecure": node.get('allowInsecure', False)
-            }
-    elif node['type'] == 'ss':
-        # Shadowsocks配置
-        config["outbounds"] = [{
-            "protocol": "shadowsocks",
-            "settings": {
-                "servers": [
-                    {
-                        "address": node['server'],
-                        "port": node['port'],
-                        "method": node['cipher'],
-                        "password": node.get('password', 'None')
-                    }
-                ]
-            }
-        }]
-    elif node['type'] == 'socks':
-        # SOCKS配置
-        outbound = {
-            "protocol": "socks",
-            "settings": {
-                "servers": [
-                    {
-                        "address": node['server'],
-                        "port": node['port']
-                    }
-                ]
-            }
-        }
-
-        # 如果有用户名和密码，添加到配置中
-        if node.get('username') and node.get('password'):
-            outbound["settings"]["servers"][0]["users"] = [
-                {
-                    "user": node['username'],
-                    "pass": node['password']
-                }
-            ]
-
-        config["outbounds"] = [outbound]
-    elif node['type'] in ['http', 'https']:
-        # HTTP/HTTPS配置
-        outbound = {
-            "protocol": "http",
-            "settings": {
-                "servers": [
-                    {
-                        "address": node['server'],
-                        "port": node['port']
-                    }
-                ]
-            }
-        }
-
-        # 如果有用户名和密码，添加到配置中
-        if node.get('username') and node.get('password'):
-            outbound["settings"]["servers"][0]["users"] = [
-                {
-                    "user": node['username'],
-                    "pass": node['password']
-                }
-            ]
-
-        config["outbounds"] = [outbound]
-    else:
-        # 对于不完全支持的协议，使用简单配置
-        logging.debug(f"警告: 节点类型 {node['type']} 可能不被完全支持，使用基本配置")
-        return None
-
-    return config
+            start = time.perf_counter()
+            for url in TEST_URLS:
+                try:
+                    resp = requests.get(
+                        url, proxies=proxies,
+                        headers=constants.HEADERS,
+                        timeout=CONNECTION_TIMEOUT
+                    )
+                    if resp.status_code in (200, 204):
+                        return int((time.perf_counter() - start) * 1000)
+                except requests.RequestException:
+                    continue
+            return -1
+        finally:
+            try:
+                proc.terminate()
+                proc.wait(timeout=5)
+            except Exception:
+                proc.kill()
+            shutil.rmtree(temp_dir)
