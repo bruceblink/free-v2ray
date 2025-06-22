@@ -1765,7 +1765,7 @@ def main():
     logging.info(f"去重后节点数量：{len(unique_nodes)}")
 
     # 4. 测试延迟
-    valid_nodes = _test_all_nodes_latency(unique_nodes)
+    valid_nodes = _test_all_nodes_latency(unique_nodes, 100)
     logging.info(f"有效节点数量：{len(valid_nodes)}")
 
     # 5. 保存结果
