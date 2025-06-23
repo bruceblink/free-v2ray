@@ -45,6 +45,7 @@ def main():
     # 3. 去重
     unique_nodes = utils.deduplicate_v2ray_nodes(all_nodes)
     logging.info(f"去重后节点数量：{len(unique_nodes)}")
+    utils.save_results(unique_nodes, "v2ray_raw.txt")
     # 4. 测试延迟
     # 构造测试器
     """
@@ -57,7 +58,7 @@ def main():
 
     logging.info(f"有效节点数量：{len(valid_nodes)}")
 
-    # 5. 保存结果
+    # 5. 保存测试后的结果
     utils.save_results(valid_nodes, "v2ray.txt")
 
 
