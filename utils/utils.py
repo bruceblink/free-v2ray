@@ -34,9 +34,6 @@ def save_results(nodes: list[dict], file_name) -> None:
     v2ray_txt.write_text(b64, encoding="utf-8")
     logging.info(f"已保存 {len(uris)} 条节点（base64）到 {v2ray_txt}")
 
-    v2ray_txt.write_text(raw, encoding="utf-8")
-    logging.info(f"已保存原始文本到 {v2ray_txt}")
-
 
 def deduplicate_v2ray_nodes(nodes):
     """根据节点唯一属性去重，例如用 server:port。"""
