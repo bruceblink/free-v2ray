@@ -79,7 +79,7 @@ class Subscriber:
     def get_subscription_url(self) -> list[str]:
         """获取订阅链接列表"""
         """加载并合并配置中的订阅链接和汇聚订阅链接，去重后返回列表。"""
-        subs = self.config.get("subscriptions", [])
+        subs = self.config.get("sub-urls", [])
         agg_url = self.config.get("aggSubs")
 
         if agg_url:

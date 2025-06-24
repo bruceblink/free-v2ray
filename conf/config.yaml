@@ -1,0 +1,86 @@
+concurrent: 24
+check-interval: 180
+timeout: 5000
+min-speed: 1024
+download-timeout: 10
+speed-test-url: https://github.com/AaronFeng753/Waifu2x-Extension-GUI/releases/download/v2.21.12/Waifu2x-Extension-GUI-v2.21.12-Portable.7z
+save-method: local
+github-gist-id: ''
+github-token: ''
+github-api-mirror: ''
+worker-url: https://example.worker.dev
+worker-token: 1234567890
+webdav-username: admin
+webdav-password: admin
+webdav-url: https://example.com/dav/
+enable-web-ui: true
+listen-port: :8199
+api-key: 17caab38e53b006833b3200fc5abfafe
+sub-store-port: :8299
+githubproxy: 自动选择
+github-proxy: https://ghp.618032.xyz/
+sub-urls:
+  - http://127.0.0.1:8199/all.yaml
+  - https://raw.githubusercontent.com/snakem982/proxypool/main/source/clash-meta.yaml
+  - https://raw.githubusercontent.com/snakem982/proxypool/main/source/clash-meta-2.yaml
+  - https://raw.githubusercontent.com/go4sharing/sub/main/sub.yaml
+  - https://raw.githubusercontent.com/SoliSpirit/v2ray-configs/main/all_configs.txt
+  - https://raw.githubusercontent.com/firefoxmmx2/v2rayshare_subcription/main/subscription/clash_sub.yaml
+  - https://raw.githubusercontent.com/Roywaller/clash_subscription/main/clash_subscription.txt
+  - https://ghproxy.net/https://raw.githubusercontent.com/firefoxmmx2/v2rayshare_subcription/main/subscription/clash_sub.yaml
+  - https://ghproxy.net/https://raw.githubusercontent.com/Roywaller/clash_subscription/refs/heads/main/clash_subscription.txt
+  - https://ghproxy.net/https://raw.githubusercontent.com/Q3dlaXpoaQ/V2rayN_Clash_Node_Getter/refs/heads/main/APIs/sc0.yaml
+  - https://ghproxy.net/https://raw.githubusercontent.com/Q3dlaXpoaQ/V2rayN_Clash_Node_Getter/refs/heads/main/APIs/sc1.yaml
+  - https://ghproxy.net/https://raw.githubusercontent.com/Q3dlaXpoaQ/V2rayN_Clash_Node_Getter/refs/heads/main/APIs/sc2.yaml
+  - https://ghproxy.net/https://raw.githubusercontent.com/Q3dlaXpoaQ/V2rayN_Clash_Node_Getter/refs/heads/main/APIs/sc3.yaml
+  - https://ghproxy.net/https://raw.githubusercontent.com/Q3dlaXpoaQ/V2rayN_Clash_Node_Getter/refs/heads/main/APIs/sc4.yaml
+  - https://ghproxy.net/https://raw.githubusercontent.com/xiaoji235/airport-free/refs/heads/main/clash/naidounode.txt
+  - https://ghproxy.net/https://raw.githubusercontent.com/mahdibland/ShadowsocksAggregator/master/LogInfo.txt
+  - https://ghproxy.net/https://raw.githubusercontent.com/mahdibland/SSAggregator/master/sub/sub_merge_yaml.yml
+  - https://ghproxy.net/https://raw.githubusercontent.com/mahdibland/ShadowsocksAggregator/master/Eternity.yml
+  - https://ghproxy.net/https://raw.githubusercontent.com/vxiaov/free_proxies/main/clash/clash.provider.yaml
+  - https://ghproxy.net/https://raw.githubusercontent.com/snakem982/proxypool/main/source/clash-meta.yaml
+  - https://ghproxy.net/https://raw.githubusercontent.com/leetomlee123/freenode/refs/heads/main/README.md
+  - https://ghproxy.net/https://raw.githubusercontent.com/chengaopan/AutoMergePublicNodes/master/list.yml
+  - https://ghproxy.net/https://raw.githubusercontent.com/ermaozi/get_subscribe/main/subscribe/clash.yml
+  - https://ghproxy.net/https://raw.githubusercontent.com/zhangkaiitugithub/passcro/main/speednodes.yaml
+  - https://ghproxy.net/https://raw.githubusercontent.com/mgit0001/test_clash/refs/heads/main/heima.txt
+  - https://ghproxy.net/https://raw.githubusercontent.com/aiboboxx/clashfree/refs/heads/main/clash.yml
+  - https://ghproxy.net/https://raw.githubusercontent.com/aiboboxx/v2rayfree/refs/heads/main/README.md
+  - https://ghproxy.net/https://raw.githubusercontent.com/Pawdroid/Free-servers/refs/heads/main/sub
+  - https://ghproxy.net/https://raw.githubusercontent.com/shahidbhutta/Clash/refs/heads/main/Router
+  - https://ghproxy.net/https://raw.githubusercontent.com/peasoft/NoMoreWalls/master/list.meta.yml
+  - https://ghproxy.net/https://raw.githubusercontent.com/anaer/Sub/refs/heads/main/clash.yaml
+  - https://ghproxy.net/https://raw.githubusercontent.com/a2470982985/getNode/main/clash.yaml
+  - https://ghproxy.net/https://raw.githubusercontent.com/free18/v2ray/refs/heads/main/c.yaml
+  - https://ghproxy.net/https://raw.githubusercontent.com/peasoft/NoMoreWalls/master/list.yml
+  - https://ghproxy.net/https://raw.githubusercontent.com/mfbpn/tg_mfbpn_sub/main/trial.yaml
+  - https://ghproxy.net/https://raw.githubusercontent.com/Ruk1ng001/freeSub/main/clash.yaml
+  - https://ghproxy.net/https://raw.githubusercontent.com/SoliSpirit/v2ray-configs/main/all_configs.txt
+  - https://ghproxy.net/https://raw.githubusercontent.com/ripaojiedian/freenode/main/clash
+  - https://ghproxy.net/https://raw.githubusercontent.com/go4sharing/sub/main/sub.yaml
+  - https://ghproxy.net/https://raw.githubusercontent.com/mfuu/v2ray/master/clash.yaml
+  - https://sub.reajason.eu.org/clash.yaml
+  - https://proxypool.link/trojan/sub
+  - https://proxypool.link/ss/sub
+  - https://proxypool.link/vmess/sub
+  - https://mxlsub.me/newfull
+  - https://igdux.top/5Hna
+  - https://ghproxy.net/https://raw.githubusercontent.com/Pawdroid/Free-servers/main/sub
+  - https://ghproxy.net/https://raw.githubusercontent.com/chengaopan/AutoMergePublicNodes/master/list.txt
+  - https://ghproxy.net/https://raw.githubusercontent.com/aiboboxx/v2rayfree/main/v2
+  - https://ghproxy.net/https://raw.githubusercontent.com/roosterkid/openproxylist/main/V2RAY_BASE64.txt
+  - https://ghproxy.net/https://raw.githubusercontent.com/vpnmarket/sub/refs/heads/main/hiddify1.txt
+  - https://ghproxy.net/https://raw.githubusercontent.com/vpnmarket/sub/refs/heads/main/hiddify2.txt
+  - https://ghproxy.net/https://raw.githubusercontent.com/vpnmarket/sub/refs/heads/main/hiddify3.txt
+  - https://raw.githubusercontent.com/mai19950/clashgithub_com/refs/heads/main/site
+aggSubs: https://raw.githubusercontent.com/cmliu/cmliu/main/SubsCheck-URLs
+mihomo-overwrite-url: http://127.0.0.1:8199/ACL4SSR_Online_Full.yaml
+rename-node: true
+media-check: true
+keep-success-proxies: false
+print-progress: false
+sub-urls-retry: 3
+subscheck-version: v2.3.2
+gui-auto: true
+success-limit: 0

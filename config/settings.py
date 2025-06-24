@@ -16,7 +16,7 @@ class Settings:
     # xray-core存放的文件夹
     XRAY_CORE_DIR = BASE_DIR / "xray-core"
     OUTPUT_DIR = BASE_DIR
-    CONFIG_FILE = BASE_DIR / "conf/conf.yaml"
+    CONFIG_FILE = BASE_DIR / "conf/config.yaml"
 
     # 协议配置
     SUPPORTED_PROTOCOLS = ["vmess", "vless"]
@@ -67,4 +67,4 @@ class TestSettings(TestCase):
         _conf = settings.config
         self.assertIsInstance(_conf, dict)
         self.assertEqual(_conf.get("aggSubs"), str("https://raw.githubusercontent.com/cmliu/cmliu/main/SubsCheck-URLs"))
-        self.assertIsInstance(_conf.get("subscriptions"), list)
+        self.assertIsInstance(_conf.get("sub-urls"), list)
