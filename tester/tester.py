@@ -211,7 +211,7 @@ class XrayOrV2RayBooster:
         下载并解压安装 Xray Core zip，返回解压后的安装目录路径。
         """
         is_windows = platform.system() == "Windows"
-        install_dir = os.path.join("xray-core", "windows-64" if is_windows else "linux-64")
+        install_dir = os.path.join("../xray-core", "windows-64" if is_windows else "linux-64")
         self.xray_install_path = os.path.join(install_dir, "xray.exe" if is_windows else "xray")
         if os.path.exists(self.xray_install_path):
             logging.info(f"Xray 已存在于：{self.xray_install_path}")
@@ -466,3 +466,17 @@ class AsyncTester:
                     proc.kill()
             shutil.rmtree(temp_dir)
 
+
+class TesterAdapter:
+    """
+    tester适配器类，用于适配不同的测试器实现。
+    """
+
+    def __init__(self, install_path: str) -> None:
+        self.install_path = install_path
+
+    def get_download_url(self) -> str | None:
+        pass
+
+    def install_core(self, release_url: str = None, timeout: int = 10) -> str:
+        pass
