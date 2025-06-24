@@ -44,5 +44,7 @@ DEBUG_MODE = False  # 默认开启调试模式，方便查看处理过程
 
 # Xray核心程序的最新版本API URL
 XRAY_API_URL = "https://api.github.com/repos/XTLS/Xray-core/releases/latest"
+# SUBS-Check的最新版本API URL
+SUBS_CHECK_URL = "https://api.github.com/repos/beck-8/subs-check/releases/latest"
 # GitHub PROXY
 GITHUB_PROXY = "https://ghproxy.com"

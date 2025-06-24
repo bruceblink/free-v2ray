@@ -92,8 +92,8 @@ if __name__ == "__main__":
         'debug': True
     }
 
-    YamlHandler.write_yaml(sample_data, '../conf.yaml')
+    YamlHandler.write_yaml(sample_data, '../config.yaml')
 
     # 安全读取示例
-    safe_loaded = YamlHandler.safe_read_yaml('../conf/conf.yaml')
+    safe_loaded = YamlHandler.safe_read_yaml('../conf/config.yaml')
     logging.info(safe_loaded)
