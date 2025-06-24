@@ -220,10 +220,10 @@ class SubsCheckTester(TesterAdapter):
         """
         release_url = self.get_download_url()
         if not release_url:
-            raise RuntimeError("无法获取 SubCheck 核心程序的下载链接，请检查网络或更换镜像。")
+            raise RuntimeError("无法获取 SubsCheck 核心程序的下载链接，请检查网络或更换镜像。")
         is_windows = platform.system() == "Windows"
         install_dir = os.path.join("subs-check", "windows-64" if is_windows else "linux-64")
-        self.install_path = os.path.join(install_dir, "subchecker.exe" if is_windows else "subchecker")
+        self.install_path = os.path.join(install_dir, "subs-check.exe" if is_windows else "subs-check")
         if os.path.exists(self.install_path):
             logging.info(f"SubChecker 已存在于：{self.install_path}")
             return self.install_path
@@ -236,7 +236,7 @@ class SubsCheckTester(TesterAdapter):
 
         for url in urls_to_try:
             try:
-                logging.info(f"尝试下载 SubChecker: {url}")
+                logging.info(f"尝试下载 subs-check: {url}")
                 resp = session.get(url, timeout=timeout)
                 resp.raise_for_status()
 
@@ -282,7 +282,7 @@ class SubsCheckTester(TesterAdapter):
 
         # 启动核心程序
         core_process = subprocess.Popen(
-            [self.install_path, "-c", config_file],
+            [self.install_path, "-f", config_file],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             startupinfo=startupinfo
@@ -306,7 +306,7 @@ class SubsCheckTester(TesterAdapter):
 
 class TestSubCheckerTester(unittest.TestCase):
     def setUp(self):
-        self.tester = SubsCheckTester(install_path="subs-check")
+        self.tester = SubsCheckTester(install_path="subs-check/windows-64/subs-check.exe")
 
     def test_get_download_url(self):
         url = self.tester.get_download_url()
@@ -319,8 +319,7 @@ class TestSubCheckerTester(unittest.TestCase):
         self.assertTrue(os.path.exists(install_path))
 
     def test_start_adapter(self):
-        config_file = "test_config.json"  # 假设存在一个测试配置文件
-        process = self.tester.start_adapter(config_file)
+        process = self.tester.start_adapter("F:\\Python_Project\\free-v2ray-node\\conf\\config.yaml")
         self.assertIsNotNone(process)
 
     def test_stop_adapter(self):
