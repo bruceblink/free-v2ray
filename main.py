@@ -5,8 +5,12 @@ from common.decorators import timer
 from common.logger import Logger
 from config.settings import Settings
 from subscription import Subscriber, AsyncSubscriber
-from tester import Tester, AsyncTester, XrayOrV2RayBooster
+from tester.tester import AsyncTester
+from tester.tester_adapter import XrayOrV2RayTester, TesterAdapter
 from utils import utils
+
+# 定义xray_booster变量
+xray_booster: TesterAdapter | None = None
 
 
 def init():
@@ -20,6 +24,8 @@ def init():
         console=True,
         colored=True
     )
+    global xray_booster
+    xray_booster = XrayOrV2RayTester("xray-core")
     logging.info("应用初始化完成")
 
 
@@ -28,9 +34,8 @@ def main():
     # 应用初始化
     init()
     """主函数，执行所有步骤"""
-    xray_booster = XrayOrV2RayBooster()
-    xray_download_url = xray_booster.get_xray_download_url()
-    if not xray_booster.install_xray_core(xray_download_url):
+
+    if not xray_booster.install_adapter():
         logging.error("未找到V2Ray或Xray核心程序，请手动下载并放置在当前目录或系统路径中")
         raise EnvironmentError("xray测试核心程序安装失败")
     # 1. 初始化订阅者
