@@ -88,8 +88,10 @@ class XrayOrV2RayTester(TesterAdapter):
         下载并解压安装 Xray Core zip，返回解压后的安装目录路径。
         """
         release_url = self.get_download_url()
+        if not release_url:
+            raise RuntimeError("无法获取 Xray 核心程序的下载链接，请检查网络或更换镜像。")
         is_windows = platform.system() == "Windows"
-        install_dir = os.path.join("../xray-core", "windows-64" if is_windows else "linux-64")
+        install_dir = os.path.join("xray-core", "windows-64" if is_windows else "linux-64")
         self.install_path = os.path.join(install_dir, "xray.exe" if is_windows else "xray")
         if os.path.exists(self.install_path):
             logging.info(f"Xray 已存在于：{self.install_path}")
@@ -136,6 +138,7 @@ class XrayOrV2RayTester(TesterAdapter):
         """
         启动 Xray 核心程序，使用指定的配置文件。
         """
+        super().start_adapter(config_file)
         if not self.install_path:
             raise RuntimeError("Xray 核心程序未安装，请先调用 download_xray_core 方法。")
         # 使用 subprocess 启动进程
@@ -159,4 +162,5 @@ class XrayOrV2RayTester(TesterAdapter):
         return core_process
 
     def stop_adapter(self, process: Popen) -> None:
+        super().stop_adapter(process)
         pass
