@@ -220,10 +220,10 @@ class SubsCheckTester(TesterAdapter):
         """
         release_url = self.get_download_url()
         if not release_url:
-            raise RuntimeError("无法获取 SubsCheck 核心程序的下载链接，请检查网络或更换镜像。")
+            raise RuntimeError("无法获取 Subs-Checker 核心程序的下载链接，请检查网络或更换镜像。")
         is_windows = platform.system() == "Windows"
-        install_dir = os.path.join("subs-check", "windows-64" if is_windows else "linux-64")
-        self.install_path = os.path.join(install_dir, "subs-check.exe" if is_windows else "subs-check")
+        install_dir = os.path.join("subs-checker", "windows-64" if is_windows else "linux-64")
+        self.install_path = os.path.join(install_dir, "subs-checker.exe" if is_windows else "subs-checker")
         if os.path.exists(self.install_path):
             logging.info(f"SubChecker 已存在于：{self.install_path}")
             return self.install_path
@@ -236,7 +236,7 @@ class SubsCheckTester(TesterAdapter):
 
         for url in urls_to_try:
             try:
-                logging.info(f"尝试下载 subs-check: {url}")
+                logging.info(f"尝试下载 subs-checker: {url}")
                 resp = session.get(url, timeout=timeout)
                 resp.raise_for_status()
 
@@ -248,7 +248,7 @@ class SubsCheckTester(TesterAdapter):
                 logging.info(f"已解压到：{install_dir}")
                 # 设置执行权限（Linux）
                 if not is_windows:
-                    subs_check_path = os.path.join(install_dir, "subs-check")
+                    subs_check_path = os.path.join(install_dir, "subs-checker")
                     if os.path.exists(subs_check_path):
                         os.chmod(subs_check_path, 0o755)
                 # 返回绝对路径
@@ -306,7 +306,7 @@ class SubsCheckTester(TesterAdapter):
 
 class TestSubCheckerTester(unittest.TestCase):
     def setUp(self):
-        self.tester = SubsCheckTester(install_path="subs-check/windows-64/subs-check.exe")
+        self.tester = SubsCheckTester(install_path="subs-checker/windows-64/subs-checker")
 
     def test_get_download_url(self):
         url = self.tester.get_download_url()
