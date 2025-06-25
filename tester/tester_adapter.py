@@ -10,10 +10,243 @@ from ssl import SSLError
 from subprocess import Popen
 import requests
 from requests import RequestException
-
 from common import constants
 from common.constants import GITHUB_PROXY, XRAY_API_URL
 from utils.utils import make_session_with_retries
+import subprocess
+import sys
+import threading
+import time
+import os
+import signal
+import psutil
+
+
+class ProcessManager:
+    def __init__(self, executable_path, *args):
+        """
+        进程管理器
+        :param executable_path: 可执行文件路径
+        :param args: 命令行参数
+        """
+        self.executable_path = executable_path
+        self.args = list(args)
+        self.process = None
+        self.pid = None
+        self.stdout_thread = None
+        self.stderr_thread = None
+        self.stdout_lines = []
+        self.stderr_lines = []
+        self.running = False
+
+        # Windows特定配置
+        self.startupinfo = None
+        if sys.platform == "win32":
+            self.startupinfo = subprocess.STARTUPINFO()
+            self.startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            self.startupinfo.wShowWindow = subprocess.SW_HIDE
+
+    def start(self):
+        """启动进程并实时输出日志"""
+        if self.is_running():
+            print(f"进程已在运行 (PID: {self.pid})")
+            return False
+
+        try:
+            # 创建进程
+            self.process = subprocess.Popen(
+                [self.executable_path] + self.args,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                bufsize=1,  # 行缓冲
+                text=True,  # 文本模式
+                startupinfo=self.startupinfo
+            )
+            self.pid = self.process.pid
+            self.running = True
+
+            print(f"进程已启动 (PID: {self.pid}): {self.executable_path} {' '.join(self.args)}")
+
+            # 启动线程实时输出日志
+            self.stdout_thread = threading.Thread(
+                target=self._read_stream,
+                args=(self.process.stdout, "STDOUT")
+            )
+            self.stderr_thread = threading.Thread(
+                target=self._read_stream,
+                args=(self.process.stderr, "STDERR")
+            )
+
+            self.stdout_thread.daemon = True
+            self.stderr_thread.daemon = True
+
+            self.stdout_thread.start()
+            self.stderr_thread.start()
+
+            return True
+        except FileNotFoundError:
+            print(f"错误: 找不到可执行文件: {self.executable_path}")
+            return False
+        except PermissionError:
+            print(f"错误: 没有执行权限: {self.executable_path}")
+            return False
+
+    def _read_stream(self, stream, stream_name):
+        """从流中读取数据并实时输出"""
+        try:
+            for line in iter(stream.readline, ''):
+                if not line:
+                    break
+                line = line.rstrip()
+                # 实时输出到终端
+                print(f"[{stream_name} PID:{self.pid}] {line}")
+                # 保存日志
+                if stream_name == "STDOUT":
+                    self.stdout_lines.append(line)
+                else:
+                    self.stderr_lines.append(line)
+        except ValueError:
+            # 当流关闭时可能发生
+            pass
+        finally:
+            stream.close()
+
+    def is_running(self):
+        """检查进程是否正在运行"""
+        return self.running and self.process and (self.process.poll() is None)
+
+    def wait(self):
+        """等待进程结束"""
+        if self.process:
+            return self.process.wait()
+        return None
+
+    def stop(self, timeout=5):
+        """停止进程"""
+        if not self.is_running():
+            print("进程未运行")
+            return True
+
+        print(f"正在停止进程 (PID: {self.pid})...")
+
+        # 优雅终止
+        try:
+            if sys.platform == "win32":
+                self.process.terminate()
+            else:
+                os.kill(self.pid, signal.SIGTERM)
+
+            # 等待结束
+            start_time = time.time()
+            while time.time() - start_time < timeout:
+                if not self.is_running():
+                    print("进程已终止")
+                    return True
+                time.sleep(0.1)
+        except Exception as e:
+            print(f"优雅终止失败: {str(e)}")
+
+        # 强制终止
+        try:
+            self._force_kill()
+            print("进程已强制终止")
+            return True
+        except Exception as e:
+            print(f"强制终止失败: {str(e)}")
+            return False
+
+    def _force_kill(self):
+        """强制终止进程树"""
+        try:
+            parent = psutil.Process(self.pid)
+            children = parent.children(recursive=True)
+
+            # 终止子进程
+            for child in children:
+                try:
+                    child.kill()
+                except psutil.NoSuchProcess:
+                    pass
+
+            # 终止父进程
+            parent.kill()
+
+            # 等待结束
+            parent.wait(timeout=2)
+        except psutil.NoSuchProcess:
+            pass
+        except Exception:
+            # 回退
+            self.process.kill()
+            self.process.wait()
+        finally:
+            self.running = False
+
+    def get_logs(self, stream="both", max_lines=None):
+        """获取日志"""
+        result = {}
+
+        if stream in ("both", "stdout"):
+            lines = self.stdout_lines
+            if max_lines and len(lines) > max_lines:
+                lines = lines[-max_lines:]
+            result["stdout"] = "\\n".join(lines)
+
+        if stream in ("both", "stderr"):
+            lines = self.stderr_lines
+            if max_lines and len(lines) > max_lines:
+                lines = lines[-max_lines:]
+            result["stderr"] = "\\n".join(lines)
+
+        return result
+
+    def __del__(self):
+        """确保进程被终止"""
+        if self.is_running():
+            self.stop()
+
+
+def main():
+    # 创建进程管理器
+    process_manager = ProcessManager("xxxx.exe", "-f", "app.yaml")
+
+    # 启动进程并实时输出日志
+    if not process_manager.start():
+        print("启动失败")
+        return
+
+    try:
+        # 主线程可以继续工作
+        print("主线程正在工作...")
+
+        # 模拟工作
+        for i in range(10):
+            print(f"主线程工作状态: {i + 1}/10")
+            time.sleep(1)
+
+            # 检查进程状态
+            if not process_manager.is_running():
+                print("子进程已提前退出")
+                break
+
+        print("主线程工作完成")
+    finally:
+        # 确保停止进程
+        process_manager.stop()
+
+        # 获取并保存日志
+        logs = process_manager.get_logs()
+        with open("process_logs.txt", "w") as f:
+            f.write("=== STDOUT ===\\n")
+            f.write(logs.get("stdout", "") + "\\n\\n")
+            f.write("=== STDERR ===\\n")
+            f.write(logs.get("stderr", "") + "\\n")
+
+        print("日志已保存到 process_logs.txt")
+
+
+if __name__ == "__main__":
+    main()
 
 
 class TesterAdapter(ABC):
@@ -319,7 +552,7 @@ class TestSubCheckerTester(unittest.TestCase):
         self.assertTrue(os.path.exists(install_path))
 
     def test_start_adapter(self):
-        process = self.tester.start_adapter("F:\\Python_Project\\free-v2ray-node\\conf\\config.yaml")
+        process = self.tester.start_adapter("F:\\Python_Project\\free-v2ray\\conf\\config.yaml")
         self.assertIsNotNone(process)
 
     def test_stop_adapter(self):
