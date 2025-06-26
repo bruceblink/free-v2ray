@@ -48,7 +48,7 @@ def node_to_v2ray_uri(node: dict) -> str | None:
     elif node['type'] in ['http', 'https']:
         # 构建http/https uri
         proto = 'http' if node['type'] == 'http' else 'https'
-        auth = f"{node['username']}:{node['password']}@" if node['username'] else ""
+        auth = f"{node.get('username', '')}:{node.get('password', '')}@ {node.get('username', '')}"
         return f"{proto}://{auth}{node['server']}:{node['port']}?remarks={node['name']}"
     elif node['type'] == 'socks':
         # 构建socks uri
@@ -431,6 +431,7 @@ def parse_v2ray_uri(uri):
         # logging.info(f"Error parsing URI: {str(e)}")
         return None
 
+
 def parse_v2ray_base64(content):
     """解析V2Ray Base64编码的配置"""
     try:
@@ -463,6 +464,7 @@ def parse_v2ray_base64(content):
     except Exception as e:
         # logging.info(f"Error parsing V2Ray base64: {str(e)}")
         return []
+
 
 def parse_clash_yaml(content):
     """解析Clash配置文件"""
