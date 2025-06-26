@@ -52,7 +52,7 @@ def node_to_v2ray_uri(node: dict) -> str | None:
         return f"{proto}://{auth}{node['server']}:{node['port']}?remarks={node['name']}"
     elif node['type'] == 'socks':
         # 构建socks uri
-        auth = f"{node['username']}:{node['password']}@" if node['username'] else ""
+        auth = f"{node.get('username', '')}:{node.get('password', '')}@ {node.get('username')}"
         return f"socks://{auth}{node['server']}:{node['port']}?remarks={node['name']}"
     elif node['type'] == 'hysteria':
         # 构建hysteria uri
