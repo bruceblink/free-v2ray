@@ -46,7 +46,7 @@ class ProcessManager:
             self.startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
             self.startupinfo.wShowWindow = subprocess.SW_HIDE
 
-    def start(self):
+    def start(self) -> bool:
         """启动进程并实时输出日志"""
         if self.is_running():
             print(f"进程已在运行 (PID: {self.pid})")
@@ -91,7 +91,7 @@ class ProcessManager:
             print(f"错误: 没有执行权限: {self.executable_path}")
             return False
 
-    def _read_stream(self, stream, stream_name):
+    def _read_stream(self, stream, stream_name) -> None:
         """从流中读取数据并实时输出"""
         try:
             for line in iter(stream.readline, ''):
@@ -111,17 +111,17 @@ class ProcessManager:
         finally:
             stream.close()
 
-    def is_running(self):
+    def is_running(self) -> bool:
         """检查进程是否正在运行"""
         return self.running and self.process and (self.process.poll() is None)
 
-    def wait(self):
+    def wait(self) -> int | None:
         """等待进程结束"""
         if self.process:
             return self.process.wait()
         return None
 
-    def stop(self, timeout=5):
+    def stop(self, timeout=5) -> bool:
         """停止进程"""
         if not self.is_running():
             print("进程未运行")
@@ -155,7 +155,7 @@ class ProcessManager:
             print(f"强制终止失败: {str(e)}")
             return False
 
-    def _force_kill(self):
+    def _force_kill(self) -> None:
         """强制终止进程树"""
         try:
             parent = psutil.Process(self.pid)
@@ -182,7 +182,7 @@ class ProcessManager:
         finally:
             self.running = False
 
-    def get_logs(self, stream="both", max_lines=None):
+    def get_logs(self, stream="both", max_lines=None) -> dict:
         """获取日志"""
         result = {}
 
